@@ -8,15 +8,15 @@
 location_list=()
 
 function loclist_add() {
-    location_list=(${location_list[@]} $1 $2 $3)
+    location_list=("${location_list[@]}" $1 $2 $3)
 }
 
 function loclist_pop() {
-    location_list=(${location_list[@]:0:(${#location_list[@]} - 3)})
+    location_list=("${location_list[@]:0:(${#location_list[@]} - 3)}")
 }
 
 function loclist_clean() {
-    location_list=(${location_list[@]:0:3})
+    location_list=("${location_list[@]:0:3}")
 }
 
 # $1: a state_id to backward execution to
@@ -25,13 +25,13 @@ function loclist_clean() {
 # side effect:
 #     remove all locations after $1 from the location_list
 function loclist_cut_at_state_id() {
-    i=${#location_list[@]}
+    local i=${#location_list[@]}
     while [ "$i" -gt 1 ]; do
-        state_id=${location_list[i - 1]}
-        col=${location_list[i - 2]}
-        line=${location_list[i - 3]}
+        local state_id=${location_list[i - 1]}
+        local col=${location_list[i - 2]}
+        local line=${location_list[i - 3]}
         if [ "$state_id" = "$1" ]; then
-            location_list=(${location_list[@]:0:i})
+            location_list=("${location_list[@]:0:i}")
             echo $line $col
             return
         fi
@@ -47,13 +47,13 @@ function loclist_cut_at_state_id() {
 # side effect:
 #     remove all locations ending after $1.$2
 function loclist_cut_at_loc() {
-    line0=$1
-    col0=$2
-    i=${#location_list[@]}
+    local line0=$1
+    local col0=$2
+    local i=${#location_list[@]}
     while [ "$i" -gt 1 ]; do
-        state_id=${location_list[i - 1]}
-        col=${location_list[i - 2]}
-        line=${location_list[i - 3]}
+        local state_id=${location_list[i - 1]}
+        local col=${location_list[i - 2]}
+        local line=${location_list[i - 3]}
         if [ "$line" -lt "$line0" ] ||
            [ "$line" -eq "$line0" -a "$col" -le "$col0" ];
         then
