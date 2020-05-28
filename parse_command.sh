@@ -51,7 +51,7 @@ function ask_more_input() {
 }
 
 function output() {
-    echo $line $i
+    echo $line $(( i + 1 ))
     [ -n "$output" ] && printf "%s%s" "$output" "\n"
     [ "$i" -gt 0 ] && printf "%s" "${buffer:(col_offset - 1):(i + 1 - col_offset)}"
     printf "\n"
