@@ -37,30 +37,12 @@ function add() {
     read line col
     read -r command
     command=$(echo "$command" | sed -n 's/</\&lt;/g ; s/>/\&gt;/g ; p')
-    # coq will say `Assertion failure' on empty add
-    if [ -n "$command" ]; then
-        req='<call val="Add"><pair>'
-        req="$req<pair><string>$command</string>"
-        req="$req<int>-1</int></pair>"
-        req="$req<pair><state_id val=\"%s\"/>"
-        req="$req<bool val=\"false\"/></pair>"
-        req="$req</pair></call>"
-        echo "add:$line.$col $req" > $in_pipe
-    fi
+    printf "add:%s.%s %s\n" "$line" "$col" "$command" >$in_pipe
 }
 
 case $1 in
-    ( 'user-input' )
-        echo "user-input" > $in_pipe
-        ;;
-    ( 'init' )
-        echo 'init <call val="Init"><option val="none"/></call>' > $in_pipe
-        ;;
-    ( 'quit' )
-        echo 'quit <call val="Quit"><unit/></call>' > $in_pipe
-        ;;
-    ( 'goal' )
-        echo 'goal <call val="Goal"><unit/></call>' > $in_pipe
+    ( 'user-input' | 'init' | 'quit' | 'goal' | 'back' | 'back-to' )
+        echo $1 >$in_pipe
         ;;
     ( 'add' )
         shift 1
@@ -73,9 +55,6 @@ case $1 in
         if [ ${#@} -ge 2 ]; then
             ./parse_command.sh $1 $2 | add
         fi
-        ;;
-    ( 'back' )
-        echo back > $in_pipe
         ;;
     ( 'to' )
         shift 1
