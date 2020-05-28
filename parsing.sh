@@ -62,28 +62,28 @@ function parse_richpp() {
 
 
 
-# stdin: goal output from coq (with '<value>...</value>' trimmed) (single line)
+# stdin: goal output from coq (single line)
 # stdout:
 #     1. (first line) A kakoune `range-specs' list (without timestamp) for highlighting the goal buffer
 #     2. (rest) The content of text to be displayed in the goal buffer (properly formatted, decoration added)
 function parse_goals() {
-    if all_goals=($(xmllint --xpath '/option[@val="some"]/goals/child::list' - 2>/dev/null));
+    if all_goals=($(xmllint --xpath '/value/option[@val="some"]/goals/child::list' - 2>/dev/null));
     then
-        if goals=($(echo ${all_goals[0]} | xmllint --xpath '/list/child::goal/child::*' - 2>/dev/null));
+        if goals=($(echo "${all_goals[0]}" | xmllint --xpath '/list/child::goal/child::*' - 2>/dev/null));
         then # There are current goals available, display them only
             goal_content="$((${#goals[@]} / 3)) goals:"
             highlighters="1.1+${#goal_content}|keyword"
         else # There are no current goals, display the nearest layer of background goals
             background_goals=($(echo ${all_goals[1]} | xmllint --xpath '/list/child::pair' - 2>/dev/null))
             for goal_stack in ${background_goals[@]}; do
-                goals=($(echo $goal_stack | xmllint --xpath '/pair/list/goal/child::*' - 2>/dev/null)) \
+                goals=($(echo "$goal_stack" | xmllint --xpath '/pair/list/goal/child::*' - 2>/dev/null)) \
                 && break
             done
             # Current proof is already completed
             if [ ${#goals[@]} -eq 0 ]; then
                 message="There are no goals left."
                 echo "1.1+${#message}|keyword"
-                echo $message
+                echo "$message"
                 return
             fi
             goal_content="There are no current goals left."
