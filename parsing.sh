@@ -2,15 +2,30 @@
 
 
 # $1: a line number for generating `range-specs' for highlighting
+# $2 (optional): a default face to use for unhighlighted text
 # stdin: a `<richpp>...</richpp>' node returned by Coq
 #        (escaped properly to let xmllint admit)
 #        (single line)
 # stdout:
-#     1. (first line) A kakoune `range-specs' list (without timestamp) for highlighting the goal buffer
-#     2. (second line) The text of the richpp node
+#     (first line) The line number of the last line of the richpp node
+#     (second line) A kakoune `range-specs' list (without timestamp) for highlighting the goal buffer
+#     (third line) The text of the richpp node
 function parse_richpp() {
-    line=$1
-    col=1
+    local line=$1
+    local col=1
+
+    function update_loc() {
+        text=$1
+        local line_count=$(echo -e "$text" | wc -l)
+        local last_line=$(echo -e "$text" | tail -n 1)
+        if [ "$line_count" -eq 1 ]; then
+            (( col = col + ${#last_line} ))
+        else
+            (( line = line + line_count - 1, col = ${#last_line} + 1 ))
+        fi
+    }
+
+    default_hl=$2
 
     # don't escape '\'
     read -r pp_text
@@ -31,27 +46,46 @@ function parse_richpp() {
 
         read -r -d '<' untagged_text
         untagged_text=$(echo $untagged_text | sed -n "$unescape_cmd")
-        (( col = $col + ${#untagged_text} ))
+        if [ -n "$default_hl" -a -n "$untagged_text" ]; then
+            highlighters="$highlighters $line.$col+${#untagged_text}|$default_hl"
+        fi
+        update_loc "$untagged_text"
 
         read -r -d '>' tag
+        if [ "${tag:(-1):1}" = "/" ]; then
+            continue
+        fi
         read -r -d '<' tagged_text
         read -r -d '>'
         tagged_text=$(echo $tagged_text | sed -n "$unescape_cmd")
         case $tag in
             # TODO: check Coq's source code for a more complete list
-            # TODO: use custom face
+            # TODO: use custom faces
+            ( 'constr.keyword' )
+                highlighters="$highlighters $line.$col+${#tagged_text}|keyword"
+                ;;
             ( 'constr.variable' )
+                highlighters="$highlighters $line.$col+${#tagged_text}|variable"
+                ;;
+            ( 'constr.reference' )
                 highlighters="$highlighters $line.$col+${#tagged_text}|variable"
                 ;;
             ( 'constr.notation' )
                 highlighters="$highlighters $line.$col+${#tagged_text}|operator"
                 ;;
+            ( 'constr.type' )
+                highlighters="$highlighters $line.$col+${#tagged_text}|type"
+                ;;
+            ( 'constr.path' )
+                highlighters="$highlighters $line.$col+${#tagged_text}|module"
+                ;;
         esac
-        (( col = $col + ${#tagged_text} ))
+        update_loc "$tagged_text"
 
         output="$output$untagged_text$tagged_text"
 
         if [ -z "$untagged_text" -a -z "$tag" -a -z "$tagged_text" ]; then
+            echo "$line"
             echo "$highlighters"
             echo "$output"
             break
@@ -61,8 +95,7 @@ function parse_richpp() {
 
 
 
-
-# stdin: goal output from coq (single line)
+# stdin: goal output from coq (single line), of the form '<value>...</value>'
 # stdout:
 #     1. (first line) A kakoune `range-specs' list (without timestamp) for highlighting the goal buffer
 #     2. (rest) The content of text to be displayed in the goal buffer (properly formatted, decoration added)
@@ -106,8 +139,9 @@ function parse_goals() {
             (( linenum = linenum + 1 ))
 
             for hyp in $(echo ${goals[index + 1]} | xmllint --xpath '/list/child::richpp' - 2>/dev/null); do
-                echo $hyp | parse_richpp $linenum
-                (( linenum = $linenum + 1 ))
+                result=($(echo $hyp | parse_richpp $linenum))
+                linenum=${result[0]}
+                printf "%s\n%s\n" "${result[1]}" "${result[2]}"
             done
 
             # trim `<string>...</string>'
@@ -116,8 +150,11 @@ function parse_goals() {
             echo "-------------------------------($goal_id)"
             (( linenum = linenum + 1 ))
 
-            echo ${goals[index + 2]} | parse_richpp $linenum
-            (( linenum = linenum + 1 ))
+            result=($(echo ${goals[index + 2]}| parse_richpp $linenum))
+            linenum=${result[0]}
+            printf "%s\n%s\n" "${result[1]}" "${result[2]}"
+#            echo ${goals[index + 2]} | parse_richpp $linenum
+#            (( linenum = linenum + 1 ))
 
             (( index = $index + 3 ))
         done | ( # join all the outputs
