@@ -1,13 +1,13 @@
 #!/bin/sh
 
 
-# $1: a line number for generating `range-specs' for highlighting
-# $2 (optional): a default face to use for unhighlighted text
+# $1: a line number for generating `range-specs' for highlighting,
+# -line_var (optional): a variable to feedback line number
+# -default (optional): a default face to use for unhighlighted text
 # stdin: a `<richpp>...</richpp>' node returned by Coq
 #        (escaped properly to let xmllint admit)
 #        (single line)
 # stdout:
-#     (first line) The line number of the last line of the richpp node
 #     (second line) A kakoune `range-specs' list (without timestamp) for highlighting the goal buffer
 #     (third line) The text of the richpp node
 function parse_richpp() {
@@ -25,7 +25,19 @@ function parse_richpp() {
         fi
     }
 
-    default_hl=$2
+    shift 1
+    while [ ! -z "$1" ]; do
+        case "$1" in
+            ( '-line_var' )
+                local line_var=$2
+                shift 2
+                ;;
+            ( '-default' )
+                local default_hl=$2
+                shift 2
+                ;;
+        esac
+    done
 
     # don't escape '\'
     read -r pp_text
@@ -85,9 +97,10 @@ function parse_richpp() {
         output="$output$untagged_text$tagged_text"
 
         if [ -z "$untagged_text" -a -z "$tag" -a -z "$tagged_text" ]; then
-            echo "$line"
-            echo "$highlighters"
-            echo "$output"
+            if [ -n "$line_var" ]; then
+                export $line_var=$line
+            fi
+            printf "%s\n%s\n" "$highlighters" "$output"
             break
         fi
     done
@@ -100,61 +113,58 @@ function parse_richpp() {
 #     1. (first line) A kakoune `range-specs' list (without timestamp) for highlighting the goal buffer
 #     2. (rest) The content of text to be displayed in the goal buffer (properly formatted, decoration added)
 function parse_goals() {
-    if all_goals=($(xmllint --xpath '/value/option[@val="some"]/goals/child::list' - 2>/dev/null));
+    if local all_goals=($(xmllint --xpath '/value/option[@val="some"]/goals/child::list' - 2>/dev/null));
     then
+        local goals=""
         if goals=($(echo "${all_goals[0]}" | xmllint --xpath '/list/child::goal/child::*' - 2>/dev/null));
         then # There are current goals available, display them only
-            goal_content="$((${#goals[@]} / 3)) goals:"
-            highlighters="1.1+${#goal_content}|keyword"
+            local goal_content="$((${#goals[@]} / 3)) goals:"
+            local highlighters="1.1+${#goal_content}|keyword"
         else # There are no current goals, display the nearest layer of background goals
-            background_goals=($(echo ${all_goals[1]} | xmllint --xpath '/list/child::pair' - 2>/dev/null))
+            local background_goals=($(echo ${all_goals[1]} | xmllint --xpath '/list/child::pair' - 2>/dev/null))
             for goal_stack in ${background_goals[@]}; do
                 goals=($(echo "$goal_stack" | xmllint --xpath '/pair/list/goal/child::*' - 2>/dev/null)) \
                 && break
             done
             # Current proof is already completed
             if [ ${#goals[@]} -eq 0 ]; then
-                message="There are no goals left."
+                local message="There are no goals left."
                 echo "1.1+${#message}|keyword"
                 echo "$message"
                 return
             fi
-            goal_content="There are no current goals left."
-            goal_content="$goal_content But there are $((${#goals[@]} / 3)) background goals:"
-            highlighters="1.1+${#goal_content}|keyword"
+            local goal_content="There are no current goals left."
+            local goal_content="$goal_content But there are $((${#goals[@]} / 3)) background goals:"
+            local highlighters="1.1+${#goal_content}|keyword"
         fi
 
-        index=0
+        local index=0
         # The frist line is already used to display number of goals
-        linenum=2
+        local linenum=2
 
         # parse all hypotheses and goals altogether, inserting proper decorations
-        # every line in the goal buffer corresponds to two lines here:
-        #     1. (first line) highlighters
-        #     2. (second line) text
+        # every line in the goal buffer corresponds to three lines here:
+        #     1. new line number
+        #     2. highlighters
+        #     3. text
         while [ "$index" -lt "${#goals[@]}" ]; do
             # Goals are separated by one newline
-            echo ""
-            echo ""
+            printf "\n\n"
             (( linenum = linenum + 1 ))
 
             for hyp in $(echo ${goals[index + 1]} | xmllint --xpath '/list/child::richpp' - 2>/dev/null); do
-                result=($(echo $hyp | parse_richpp $linenum))
-                linenum=${result[0]}
-                printf "%s\n%s\n" "${result[1]}" "${result[2]}"
+                echo $hyp | parse_richpp $linenum -line_var linenum
+                (( linenum = linenum + 1 ))
             done
 
             # trim `<string>...</string>'
-            goal_id=${goals[index]:8:-9}
+            local goal_id=${goals[index]:8:-9}
             echo "$linenum.32+1|operator $linenum.33+${#goal_id}|value $linenum.$((33 + ${#goal_id}))+1|operator"
             echo "-------------------------------($goal_id)"
             (( linenum = linenum + 1 ))
 
-            result=($(echo ${goals[index + 2]}| parse_richpp $linenum))
-            linenum=${result[0]}
-            printf "%s\n%s\n" "${result[1]}" "${result[2]}"
-#            echo ${goals[index + 2]} | parse_richpp $linenum
-#            (( linenum = linenum + 1 ))
+            echo ${goals[index + 2]}| parse_richpp $linenum -line_var linenum
+            (( linenum = linenum + 1 ))
 
             (( index = $index + 3 ))
         done | ( # join all the outputs
@@ -162,7 +172,7 @@ function parse_goals() {
                   read -r line;
             do
                  [ -n "$highlighters_delta" ] && highlighters="$highlighters $highlighters_delta"
-                 goal_content="$goal_content\n$line"
+                 local goal_content="$goal_content\n$line"
             done
             echo $highlighters
             echo -e $goal_content
