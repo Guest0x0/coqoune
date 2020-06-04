@@ -63,9 +63,9 @@ case $1 in
             col=$2
             end_line=$3
             end_col=$4
-            if [ "$line" -lt "$end_line" ] || [ "$line" -eq "$end_line" -a "$col" -ge "$end_col" ]; then
+            if [ "$line" -lt "$end_line" ] || [ "$line" -eq "$end_line" -a "$col" -lt"$end_col" ]; then
                 ./parse_command.sh $line $col |
-                    while [ "$line" -lt "$end_line" ] || [ "$line" -eq "$end_line" -a "$col" -ge "$end_col" ]; do
+                    while [ "$line" -lt "$end_line" ] || [ "$line" -eq "$end_line" -a "$col" -lt"$end_col" ]; do
                         read line col
                         read -r command
                         ( echo $line $col; echo "$command" ) | add
