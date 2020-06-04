@@ -19,7 +19,7 @@ define-command coq-start -params 0 %{
     }
 
 # hooks for cleanup
-    hook -group coqoune buffer BufClose '.*' %{
+    hook -group coqoune -once buffer BufClose .* %{
         nop %sh{
             ( $kak_opt_coqoune_path/coqoune.sh -s $kak_session user-input
               $kak_opt_coqoune_path/coqoune.sh -s $kak_session quit
@@ -34,15 +34,15 @@ define-command coq-start -params 0 %{
     }
 
 # set up highlighters.
-    # highlighter for marking commands already executed
-    # `coqoune_executed' should contain only one region
-    declare-option -hidden range-specs coqoune_executed_highlighters %val{timestamp}
+    # highlighter for marking commands already processed
+    # `coqoune_processed' should contain only one region
+    declare-option -hidden range-specs coqoune_processed_highlighters %val{timestamp}
     evaluate-commands %{
-        add-highlighter buffer/coqoune_executed ranges coqoune_executed_highlighters
+        add-highlighter buffer/coqoune_processed ranges coqoune_processed_highlighters
     }
 
-    # face for marking executed commands
-    set-face buffer coqoune_executed default,default+u
+    # face for marking processed commands
+    set-face buffer coqoune_processed default,default+u
 
     # semantic highlighters based on coq's output
     declare-option -hidden range-specs coqoune_goal_highlighters     %val{timestamp}
@@ -55,34 +55,19 @@ define-command coq-start -params 0 %{
         add-highlighter buffer/coqoune_result ranges coqoune_result_highlighters
     }
 
-# callback commands
-    define-command -hidden coq-refresh-goal -params 0 %{
-        execute-keys -buffer '*goal*' %sh{ echo "%|cat<space>/tmp/coqoune-$kak_session/goal<ret>" }
-    }
-
-    define-command -hidden coq-refresh-result -params 0 %{
-        execute-keys -buffer '*result*' %sh{ echo "%|cat<space>/tmp/coqoune-$kak_session/result<ret>" }
-    }
-
-    define-command -hidden coq-recover-error -params 2 %{
-        evaluate-commands %sh{
-            echo -n "set-option buffer coqoune_executed_highlighters $kak_timestamp "
-            echo "1.1,$1.$2|coqoune_executed"
-        }
-    }
-
 
 # user interaction
 
-    # request for goal. Should be called automatically.
+    # manually request for goal. Should be called automatically.
     define-command -hidden coq-goal -params 0 %{
         nop %sh{ $kak_opt_coqoune_path/coqoune.sh -s $kak_session goal }
     }
 
+    # receive a movement command ('next', 'back' or 'to') and send it to coqoune
     define-command -hidden coq-move-command -params 1 %{
         nop %sh{ $kak_opt_coqoune_path/coqoune.sh -s $kak_session user-input }
         execute-keys -draft %sh{
-            echo $kak_opt_coqoune_executed_highlighters | (
+            echo $kak_opt_coqoune_processed_highlighters | (
                 read -d ' ' # timestamp
                 read -d '.' # start line (should be beginning of buffer)
                 read -d ',' # end line (should be beginning of buffer)
@@ -109,11 +94,21 @@ define-command coq-start -params 0 %{
         coq-goal
     }
 
-    define-command coq-next -params 0 %{ coq-move-command next }
-    define-command coq-back -params 0 %{ coq-move-command back }
+    define-command coq-next      -params 0 %{ coq-move-command next }
+    define-command coq-back      -params 0 %{ coq-move-command back }
     define-command coq-to-cursor -params 0 %{ coq-move-command to }
 
 
+    define-command coq-query -params 1 \
+        -docstring "send the first argument as a query to coqoune" %{
+            nop %sh{
+                $kak_opt_coqoune_path/coqoune.sh -s $kak_session user-input
+                $kak_opt_coqoune_path/coqoune.sh -s $kak_session query "$1"
+            }
+        }
+
+
+    # automatically backward execution on text change 
     define-command -hidden coq-on-text-change -params 0 %{
         nop %sh{ $kak_opt_coqoune_path/coqoune.sh -s $kak_session user-input }
         nop %sh{
@@ -134,7 +129,7 @@ define-command coq-start -params 0 %{
                     echo 0
                 fi
             }
-            echo $kak_opt_coqoune_executed_highlighters | (
+            echo $kak_opt_coqoune_processed_highlighters | (
                     read -d ' '
                     read -d '.'
                     read -d ','
@@ -143,6 +138,7 @@ define-command coq-start -params 0 %{
                     earliest_line=99999999
                     earliest_col=99999999
                     echo $kak_selections_desc | (
+                        # find the earliest selection
                         while read -d '.'; read -d ','; do
                             read -d '.' line
                             read -d ' ' col
@@ -151,6 +147,7 @@ define-command coq-start -params 0 %{
                                 earliest_col=$col
                             fi
                         done
+                        # if (any part of) the edit happens inside processed region, backward execution
                         if [ "$(compare_cursor $earliest_line $earliest_col $line0 $col0)" -eq '-1' ]; then
                             $kak_opt_coqoune_path/coqoune.sh -s $kak_session to $line0 $col0 $earliest_line $earliest_col
                         fi
@@ -159,6 +156,6 @@ define-command coq-start -params 0 %{
         }
     }
 
-    hook -group coqoune buffer InsertChar .* coq-on-text-change
+    hook -group coqoune buffer InsertChar   .* coq-on-text-change
     hook -group coqoune buffer InsertDelete .* coq-on-text-change
 }
