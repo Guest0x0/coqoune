@@ -94,19 +94,21 @@ define-command coq-start -params 0 %{
         coq-goal
     }
 
-    define-command coq-next      -params 0 %{ coq-move-command next }
-    define-command coq-back      -params 0 %{ coq-move-command back }
-    define-command coq-to-cursor -params 0 %{ coq-move-command to }
-
-
-    define-command coq-query -params 1 \
-        -docstring "send the first argument as a query to coqoune" %{
-            nop %sh{
-                $kak_opt_coqoune_path/coqoune.sh -s $kak_session user-input
-                $kak_opt_coqoune_path/coqoune.sh -s $kak_session query "$1"
-            }
+    define-command coq-next \
+        -docstring "send the next command to coq" \
+        -params 0 %{
+            coq-move-command next
         }
-
+    define-command coq-back \
+        -docstring "undo the last sent command" \
+        -params 0 %{
+            coq-move-command back
+        }
+    define-command coq-to-cursor \
+        -docstring "move processed area boundary to main cursor, sending or undoing commands if necessary" \
+        -params 0 %{
+            coq-move-command to
+        }
 
     # automatically backward execution on text change 
     define-command -hidden coq-on-text-change -params 0 %{
@@ -158,4 +160,23 @@ define-command coq-start -params 0 %{
 
     hook -group coqoune buffer InsertChar   .* coq-on-text-change
     hook -group coqoune buffer InsertDelete .* coq-on-text-change
+
+
+    define-command coq-query \
+        -docstring "send the first argument as a query to coqoune" \
+        -params 1 %{
+            nop %sh{
+                $kak_opt_coqoune_path/coqoune.sh -s $kak_session user-input
+                $kak_opt_coqoune_path/coqoune.sh -s $kak_session query "$1"
+            }
+        }
+
+
+    define-command coq-dump-log \
+        -docstring "dump coqoune log to the specified file" \
+        -params 1 %{
+            nop %sh{
+                cp /tmp/coqoune-$kak_session/log $1
+            }
+        }
 }
