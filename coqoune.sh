@@ -22,7 +22,7 @@ in_pipe="/tmp/coqoune-$session/in"
 
 if [ ! -e "$in_pipe" ]; then
     echo "spawning ..."
-    ./event_loop.sh -s $session 2>>./log
+    ./event_loop.sh -s $session 
 fi
 
 if [ -z "$1" ]; then
