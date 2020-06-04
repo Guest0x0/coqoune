@@ -75,4 +75,10 @@ case $1 in
             fi
         fi
         ;;
+    ( 'query' )
+        shift 1
+        if [ -n "$1" ]; then
+            echo "query $1" >$in_pipe
+        fi
+        ;;
 esac
