@@ -103,6 +103,7 @@ source ./location_list.sh
 #    cleaned.
 goal_file="$tmpdir/goal"
 res_file="$tmpdir/result"
+log_file="$tmpdir/log"
 
 res_route=$sent_timestamp
 
@@ -331,7 +332,6 @@ while read -r cmd arg <$in_pipe; do
 #     same as "value", but for '<feedback>...</feedback>' outputs.
         ( 'feedback' )
             feedback=$arg
-            printf "feedback:\n%s\n" "$feedback" >&2
             route=$(echo "$feedback" | xmllint --xpath '/feedback/attribute::route' - 2>/dev/null)
             route=${route:8:-1}
 #     If the route id has changed, a new group of feedbacks is being received, so clean the result buffer.
@@ -344,11 +344,9 @@ while read -r cmd arg <$in_pipe; do
                 ( 'message' )
                     line_count=($(wc -l $res_file))
                     line_count=$(( ${line_count[0]} + 1 ))
-                    printf "line count: $line_count\n" >&2
                     echo "$feedback" \
                           | xmllint --xpath '/feedback/feedback_content/message/child::richpp' - 2>/dev/null \
                           | parse_richpp $line_count \
-                          | ( read linenum; cat - ) \
                           | kak_refresh_result -incr
                     ;;
             esac
@@ -366,6 +364,7 @@ done | coqidetop -main-channel stdfds | while read -r -d '>' content; do
     content="${content:0:-2}"
     output="$output$content>"
     if [ "${content:(-7):7}" = "</value" ]; then
+        printf "coqidetop: value: %s\n" "$output" >&2
         if [ "${output:12:4}" = 'good' ];then
             printf "value %s\n" "$output" >$in_pipe
         else
@@ -373,11 +372,12 @@ done | coqidetop -main-channel stdfds | while read -r -d '>' content; do
         fi
         output=""
     elif [ "${content:(-10):10}" = "</feedback" ]; then
+        printf "coqidetop: feedback: %s\n" "$output" >&2
         printf "feedback %s\n" "$output" >$in_pipe
         output=""
     fi
 done
 
-rm $in_pipe $goal_file $res_file
+rm $in_pipe $goal_file $res_file $log_file
 rmdir $tmpdir
-) &
+) 2>$log_file &
