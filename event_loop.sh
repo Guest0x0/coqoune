@@ -380,4 +380,4 @@ done
 
 rm $in_pipe $goal_file $res_file $log_file
 rmdir $tmpdir
-) 2>$log_file &
+) 2>>$log_file &
