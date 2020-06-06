@@ -1,11 +1,11 @@
 
 
 declare-option str coqoune_path %sh{
-    echo ${kak_source:0:-7}
+    echo ${kak_source:0:-15}
 }
 
 # source syntax file
-source /home/guest0/Projects/kakoune/rc/filetype/coq.kak
+source "%opt{coqoune_path}/rc/coq.kak"
 
 define-command coq-start -params 0 %{
 
@@ -31,6 +31,9 @@ define-command coq-start -params 0 %{
     evaluate-commands -draft %{
         edit -scratch '*goal*'
         edit -scratch '*result*'
+    }
+    evaluate-commands -draft -buffer '*goal*' %{
+        set-option buffer filetype coq-goal
     }
 
 # set up highlighters.

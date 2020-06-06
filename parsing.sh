@@ -116,10 +116,11 @@ function parse_goals() {
     if local all_goals=($(xmllint --xpath '/value/option[@val="some"]/goals/child::list' - 2>/dev/null));
     then
         local goals=""
+        local highlighters=""
         if goals=($(echo "${all_goals[0]}" | xmllint --xpath '/list/child::goal/child::*' - 2>/dev/null));
         then # There are current goals available, display them only
             local goal_content="$((${#goals[@]} / 3)) goals:"
-            local highlighters="1.1+${#goal_content}|keyword"
+#            local highlighters="1.1+${#goal_content}|keyword"
         else # There are no current goals, display the nearest layer of background goals
             local background_goals=($(echo ${all_goals[1]} | xmllint --xpath '/list/child::pair' - 2>/dev/null))
             for goal_stack in ${background_goals[@]}; do
@@ -129,13 +130,13 @@ function parse_goals() {
             # Current proof is already completed
             if [ ${#goals[@]} -eq 0 ]; then
                 local message="There are no goals left."
-                echo "1.1+${#message}|keyword"
+#                echo "1.1+${#message}|keyword"
                 echo "$message"
                 return
             fi
             local goal_content="There are no current goals left."
             local goal_content="$goal_content But there are $((${#goals[@]} / 3)) background goals:"
-            local highlighters="1.1+${#goal_content}|keyword"
+#            local highlighters="1.1+${#goal_content}|keyword"
         fi
 
         local index=0
