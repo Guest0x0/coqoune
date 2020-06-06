@@ -27,8 +27,10 @@ source /path/to/coqoune/rc.kak
 when you need coqoune (e.g. inside a filetype hook)
 
 ### Installation via plug.kak
-
-**TODO**
+```
+plug "guest0x0/coqoune"
+```
+You can config coqoune within plug.kak as well, see [the plug.kak repo](https://gitlab.com/andreyorst/plug.kak)
 
 
 ## 2. Usage
