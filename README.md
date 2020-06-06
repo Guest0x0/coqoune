@@ -92,3 +92,7 @@ and dump coqoune log to the file (for debugging & trouble-shooting).
 The face `coqoune_processed` is used to highlight `processed` region.
 By default it simply underline the region,
 you can set it to alter the visual effect.
+
+
+## 4. License
+This software is distributed under the zlib license.
