@@ -1,6 +1,8 @@
 
 # Coqoune - CoqIDE meets Kakoune
 
+![](./screenshot.png)
+
 Coqoune is a kakoune plugin for the Coq proof assistant,
 featuring a CoqIDE-like experience with interactive goal & feedback display.
 
