@@ -24,7 +24,7 @@ git clone https://github.com/guest0x0/coqoune
 ```
 then in your kakrc
 ```
-source /path/to/coqoune/rc.kak
+source /path/to/coqoune/rc/coqoune.kak
 ```
 when you need coqoune (e.g. inside a filetype hook)
 
@@ -46,7 +46,7 @@ which displays proof goal and feedback message from Coq in respect.
 You can open new kakoune clients to display them alongside the main buffer,
 using i3, tmux or your tool of choice.
 
-Note that only one coqoune instance can existper kakoune session.
+Note that only one coqoune instance can exist per kakoune session.
 
 Once coqoune is started,
 you can perform various commands provided by coqoune.
