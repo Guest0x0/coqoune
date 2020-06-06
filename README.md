@@ -14,6 +14,8 @@ However there are several runtime dependencies:
 > the coqidetop command
  
 > the xmllint command from libxml2
+ 
+> standard POSIX utilities 
 
 ### Manual Installation
 do
@@ -28,7 +30,9 @@ when you need coqoune (e.g. inside a filetype hook)
 
 ### Installation via plug.kak
 ```
-plug "guest0x0/coqoune"
+plug "guest0x0/coqoune" subset %{
+    coqoune.kak
+}
 ```
 You can config coqoune within plug.kak as well, see [the plug.kak repo](https://gitlab.com/andreyorst/plug.kak)
 
