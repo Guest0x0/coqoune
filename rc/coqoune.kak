@@ -5,7 +5,7 @@ declare-option str coqoune_path %sh{
 }
 
 # source syntax file
-source "%opt{coqoune_path}/rc/coq.kak"
+source "%opt{coqoune_path}/rc/syntax.kak"
 
 define-command coq-start -params 0 %{
 
