@@ -174,6 +174,15 @@ define-command coq-start -params 0 %{
             }
         }
 
+    define-command coq-hints \
+        -docstring "ask coq for hints" \
+        -params 0 %{
+            nop %sh{
+                $kak_opt_coqoune_path/coqoune.sh -s $kak_session user-input
+                $kak_opt_coqoune_path/coqoune.sh -s $kak_session hints
+            }
+        }
+
 
     define-command coq-dump-log \
         -docstring "dump coqoune log to the specified file" \

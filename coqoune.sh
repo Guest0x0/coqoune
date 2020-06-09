@@ -65,7 +65,7 @@ case $1 in
             end_col=$4
             if [ "$line" -lt "$end_line" ] || [ "$line" -eq "$end_line" -a "$col" -lt"$end_col" ]; then
                 ./parse_command.sh $line $col |
-                    while [ "$line" -lt "$end_line" ] || [ "$line" -eq "$end_line" -a "$col" -lt"$end_col" ]; do
+                    while [ "$line" -lt "$end_line" ] || [ "$line" -eq "$end_line" -a "$col" -lt "$end_col" ]; do
                         read line col
                         read -r command
                         ( echo $line $col; echo "$command" ) | add
@@ -80,5 +80,8 @@ case $1 in
         if [ -n "$1" ]; then
             echo "query $1" >$in_pipe
         fi
+        ;;
+    ( 'hints' )
+        echo "hints" >$in_pipe
         ;;
 esac

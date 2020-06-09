@@ -250,6 +250,11 @@ while read -r cmd arg <$in_pipe; do
                 enqueue_command 'query' "$xml"
             fi
             ;;
+# hints:
+#     ask for hints at current tip.
+        ( 'hints' )
+            enqueue_command 'hints' '<call val="Hints"><unit/></call>'
+            ;;
 # goal:
 #     query for goals
         ( 'goal' )
@@ -321,6 +326,14 @@ while read -r cmd arg <$in_pipe; do
                     kak_refresh_processed
                     ;;
                 ( 'query' )
+                    ;;
+                ( 'hints' )
+                    printf "Hints:\n%s\n" "$output" >&2
+                    printf "%s\n" "$output" \
+                        | xmllint --xpath '/value/option/pair/list/pair/string/child::text()' - \
+                        | sed -n 's/&amp;nbsp;/ /g; p' \
+                        | ( printf "\n"; cat - ) \
+                        | kak_refresh_result
                     ;;
                 ( 'goal' )
                     printf "%s\n" "$output" | parse_goals | kak_refresh_goal

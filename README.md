@@ -90,7 +90,9 @@ which contains a query to be sent to Coq, at current tip.
 The query is just one or more ordinary Coq commands,
 but these commands won't change the state (i.e. tip and `processed`)
 
-2.  `coq-dump-log`: receive a file name as the first parameter,
+2.  `coq-hints`: ask Coq for possible hints at current tip.
+
+3.  `coq-dump-log`: receive a file name as the first parameter,
 and dump coqoune log to the file (for debugging & trouble-shooting).
 
 
