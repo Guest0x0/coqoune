@@ -38,7 +38,6 @@ fi
 function add() {
     read line col
     read -r command
-    command=$(echo "$command" | sed -n 's/</\&lt;/g ; s/>/\&gt;/g ; p')
     printf "add:%s.%s %s\n" "$line" "$col" "$command" >$in_pipe
 }
 
