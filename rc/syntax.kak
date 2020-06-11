@@ -10,7 +10,7 @@ hook global BufCreate .*\.v %{
 # --------------
 
 hook global BufSetOption filetype=coq %{
-    require-module coq
+    require-module coqoune-syntax
     hook buffer InsertChar \n -group coq-indent coq-copy-indent-on-newline
 
     set-option buffer static_words %opt{coq_static_words}
@@ -18,12 +18,12 @@ hook global BufSetOption filetype=coq %{
 }
 
 hook global BufSetOption filetype=coq-goal %{
-    require-module coq
+    require-module coqoune-syntax
 
     add-highlighter buffer/coq ref coq
 }
 
-provide-module coq %{
+provide-module coqoune-syntax %{
 
 # Syntax
 # ------
@@ -41,7 +41,7 @@ provide-module coq %{
 
     # This is not any lexical convention of coq, simply highlighting used to make
     # proofs look better, based on how people usually use notations
-    add-highlighter shared/coq/command/ regex [`!@#$%^&*-+=\\:\;|<>/]+ 0:operator
+    add-highlighter shared/coq/command/ regex [`!@#$%^&-*+=\\:\;|<>/]+ 0:operator
     add-highlighter shared/coq/command/ regex \(dfs\)|\(bfs\)          0:operator
     add-highlighter shared/coq/command/ regex [()\[\]{}]               0:operator
 
@@ -95,14 +95,18 @@ provide-module coq %{
         "
         commands_regex=$(echo ${commands} | tr ' ' '|')
         printf %s "
-            add-highlighter shared/coq/command/ regex ^[\h\n]*(${commands_regex})\b 0:variable
+            add-highlighter shared/coq/command/ regex ^[\h\n]*(${commands_regex})\b 0:function
         "
 
         tactics_regex=$(echo ${tactics} | tr ' ' '|')
         printf %s "
-            add-highlighter shared/coq/command/ regex \b(${tactics_regex})\b 0:keyword
+            add-highlighter shared/coq/command/ regex \b(${tactics_regex})\b 0:variable
         "
     }
+
+    # module paths. Put here to override modules with the same name as some builtin stuffs,
+    # for example 'omega'.
+    add-highlighter shared/coq/command/ regex \b\w+(?=\.\w) 0:module
 
 # Indentation
 # -----------
