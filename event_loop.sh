@@ -1,5 +1,7 @@
 #!/bin/sh
 
+coqoune_path=${0:0:(-14)}
+
 session=""
 while [ ! -z $1 ]; do
     case $1 in
@@ -91,7 +93,7 @@ state=ok
 #    coq state_id *after* the command is added.
 #
 #    $location_list should be in increasing order of locations.
-source ./location_list.sh
+source $coqoune_path/location_list.sh
 
 # 7. the goal and message output of coq are repectively stored in $goal_file and $res_file
 #    (both are regular files).
@@ -108,8 +110,8 @@ log_file="$tmpdir/log"
 res_route=$sent_timestamp
 
 
-source ./parsing.sh
-source ./kak_util.sh
+source $coqoune_path/parsing.sh
+source $coqoune_path/kak_util.sh
 
 
 # queue a received command in $todo_list

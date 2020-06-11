@@ -1,5 +1,7 @@
 #!/bin/sh
 
+coqoune_path=${0:0:(-11)}
+
 session=""
 case $1 in
     ( '-s' )
@@ -22,7 +24,7 @@ in_pipe="/tmp/coqoune-$session/in"
 
 if [ ! -e "$in_pipe" ]; then
     echo "spawning ..."
-    ./event_loop.sh -s $session 
+    $coqoune_path/event_loop.sh -s $session
 fi
 
 if [ -z "$1" ]; then
@@ -53,7 +55,7 @@ case $1 in
     ( 'next' )
         shift 1
         if [ ${#@} -ge 2 ]; then
-            ./parse_command.sh $1 $2 | add
+            $coqoune_path/parse_command.sh $1 $2 | add
         fi
         ;;
     ( 'to' )
@@ -64,7 +66,7 @@ case $1 in
             end_line=$3
             end_col=$4
             if [ "$line" -lt "$end_line" ] || [ "$line" -eq "$end_line" -a "$col" -lt"$end_col" ]; then
-                ./parse_command.sh $line $col |
+                $coqoune_path/parse_command.sh $line $col |
                     while [ "$line" -lt "$end_line" ] || [ "$line" -eq "$end_line" -a "$col" -lt "$end_col" ]; do
                         read line col
                         read -r command
