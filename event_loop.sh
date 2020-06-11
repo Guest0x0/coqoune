@@ -187,7 +187,7 @@ while read -r cmd arg <$in_pipe; do
         ( add:* )
 #     The text of the coq command itself should follow "add" in $in_pipe, separated by a space.
 #     The text should have newlines escaped.
-            code=$arg
+            code=$(printf "%s\n" "$arg" | sed -n 's/&/&amp;/g; p')
             if [ -n "$code" ]; then
                 xml='<call val="Add"><pair>'
                 xml="$xml<pair><string>$code</string>"
