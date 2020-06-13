@@ -41,7 +41,7 @@ provide-module coqoune-syntax %{
 
     # This is not any lexical convention of coq, simply highlighting used to make
     # proofs look better, based on how people usually use notations
-    add-highlighter shared/coq/command/ regex [`!@#$%^&-*+=\\:\;|<>/]+ 0:operator
+    add-highlighter shared/coq/command/ regex [`!@#$%^&*\\:\;|<>/+=-]+ 0:operator
     add-highlighter shared/coq/command/ regex \(dfs\)|\(bfs\)          0:operator
     add-highlighter shared/coq/command/ regex [()\[\]{}]               0:operator
 
