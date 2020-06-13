@@ -137,47 +137,38 @@ function parse_goals() {
         fi
 
         local index=0
-        # The frist line is already used to display number of goals
-        local linenum=2
+        local goal_id=1
 
         # parse all hypotheses and goals altogether, inserting proper decorations
-        # every line in the goal buffer corresponds to three lines here:
-        #     1. new line number
-        #     2. highlighters
-        #     3. text
-        while [ "$index" -lt "${#goals[@]}" ]; do
-            # Goals are separated by one newline
-            printf "\n\n"
-            (( linenum = linenum + 1 ))
+        # To properly calculate line number, this process is done in three steps:
+        #     1. (the first sub-shell) merge all hypotheses, goals and decorations into
+        #        one big '<richpp>...</richpp>' node (input of $parse_richpp)
+        #     2. let $parse_richpp parse the whole goal contents
+        #     3. (last sub-shell) output the result
+        ( printf '<richpp><pp><_>'
+          printf '%s\\n\\n' "$goal_content"
+          while [ "$index" -lt "${#goals[@]}" ]; do
+              for hyp in $(echo ${goals[index + 1]} | xmllint --xpath '/list/child::richpp' - 2>/dev/null); do
+                  printf '%s\\n' "${hyp:15:-18}"
+              done
 
-            for hyp in $(echo ${goals[index + 1]} | xmllint --xpath '/list/child::richpp' - 2>/dev/null); do
-                echo $hyp | parse_richpp $linenum -line_var linenum
-                (( linenum = linenum + 1 ))
-            done
+              # trim `<string>...</string>'
+              # local goal_id=${goals[index]:8:-9}
+              printf -- '-------------------------------(%s)\\n' "$goal_id"
+              (( goal_id = goal_id + 1 ))
 
-            # trim `<string>...</string>'
-            local goal_id=${goals[index]:8:-9}
-            echo "$linenum.32+1|operator $linenum.33+${#goal_id}|value $linenum.$((33 + ${#goal_id}))+1|operator"
-            echo "-------------------------------($goal_id)"
-            (( linenum = linenum + 1 ))
-
-            echo ${goals[index + 2]}| parse_richpp $linenum -line_var linenum
-            (( linenum = linenum + 1 ))
-
-            (( index = $index + 3 ))
-        done | ( # join all the outputs
-            while read highlighters_delta;
-                  read -r line;
-            do
-                 [ -n "$highlighters_delta" ] && highlighters="$highlighters $highlighters_delta"
-                 local goal_content="$goal_content\n$line"
-            done
+              printf '%s\\n' "${goals[index + 2]:15:-18}"
+              (( index = $index + 3 ))
+          done
+          printf '</_></pp></richpp>'
+        ) | parse_richpp 1 | (
+            read highlighters
+            read -r content
             printf "%s\n" "$highlighters"
-            echo -e $goal_content
+            printf "$content"
         )
     else # We are not inside a proof at all
-        echo ""
-        echo ""
+        printf "\n\n"
     fi
 }
 
