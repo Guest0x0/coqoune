@@ -144,6 +144,7 @@ function flush_todo_list() {
                  ;;
          esac
          local xml="${todo_list[2]}"
+         xml=$(printf "%s" "$xml" | sed -n 's/%/%%/g; p')
          if [ "${#location_list[@]}" -gt 0 ]; then
              printf "$xml\n" "${location_list[-1]}"
          else
