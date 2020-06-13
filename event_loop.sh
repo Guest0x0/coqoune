@@ -144,7 +144,6 @@ function flush_todo_list() {
                  ;;
          esac
          local xml="${todo_list[2]}"
-         xml=$(printf "%s" "$xml" | sed -n 's/%/%%/g; p')
          if [ "${#location_list[@]}" -gt 0 ]; then
              printf "$xml\n" "${location_list[-1]}"
          else
@@ -188,7 +187,13 @@ while read -r cmd arg <$in_pipe; do
         ( add:* )
 #     The text of the coq command itself should follow "add" in $in_pipe, separated by a space.
 #     The text should have newlines escaped.
-            code=$(printf "%s\n" "$arg" | sed -n 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt/g; p')
+            code=$(printf "%s\n" "$arg" | sed -n '
+                s/&/\&amp;/g;
+                s/</\&lt;/g;
+                s/>/\&gt;/g;
+                s/%/%%/g;
+                p
+            ')
             if [ -n "$code" ]; then
                 xml='<call val="Add"><pair>'
                 xml="$xml<pair><string>$code</string>"
