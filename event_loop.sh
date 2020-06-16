@@ -311,7 +311,7 @@ while read -r cmd arg <$in_pipe; do
 #     If a state-changing or result-changing command has returned successfully, clean and refresh the result buffer.
             case "$cmd" in
                 ( 'init' | add:* | 'back' | back-to* )
-                    printf "\n" | kak_refresh_result
+                    printf "\n" | kak_refresh_result &
                     ;;
             esac
             case "$cmd" in
@@ -319,7 +319,7 @@ while read -r cmd arg <$in_pipe; do
                     state_id=$(echo "$output" | xmllint --xpath '/value/state_id/attribute::val' - 2>/dev/null)
                     printf "get new state_id: %s\n" "${state_id:6:-1}" >&2
                     loclist_add 1 1 "${state_id:6:-1}"
-                    kak_refresh_processed
+                    kak_refresh_processed &
                     ;;
                 ( add:* )
                     loc=($(echo ${cmd:4} | tr '.' ' '))
@@ -328,23 +328,23 @@ while read -r cmd arg <$in_pipe; do
                     state_id=$(echo "$output" | xmllint --xpath '/value/pair/state_id/attribute::val' - 2>/dev/null)
                     printf "get new state_id: %s\n" "${state_id:6:-1}" >&2
                     loclist_add "$line" "$col" "${state_id:6:-1}"
-                    kak_refresh_processed
+                    kak_refresh_processed &
                     ;;
                 ( 'back' | back-to:* | 'error' )
-                    kak_refresh_processed
+                    kak_refresh_processed &
                     ;;
                 ( 'query' )
                     ;;
                 ( 'hints' )
                     printf "Hints:\n%s\n" "$output" >&2
-                    printf "%s\n" "$output" \
+                    ( printf "%s\n" "$output" \
                         | xmllint --xpath '/value/option/pair/list/pair/string/child::text()' - \
                         | sed -n 's/&amp;nbsp;/ /g; p' \
                         | ( printf "\n"; cat - ) \
-                        | kak_refresh_result
+                        | kak_refresh_result ) &
                     ;;
                 ( 'goal' )
-                    printf "%s\n" "$output" | parse_goals | kak_refresh_goal
+                    ( printf "%s\n" "$output" | parse_goals | kak_refresh_goal ) &
                     ;;
             esac
             sent_list=("${sent_list[@]:1}")
