@@ -13,17 +13,7 @@
 function parse_richpp() {
     local line=$1
     local col=1
-
-    function update_loc() {
-        text=$1
-        local line_count=$(echo -e "$text" | wc -l)
-        local last_line=$(echo -e "$text" | tail -n 1)
-        if [ "$line_count" -eq 1 ]; then
-            (( col = col + ${#last_line} ))
-        else
-            (( line = line + line_count - 1, col = ${#last_line} + 1 ))
-        fi
-    }
+    
 
     shift 1
     while [ ! -z "$1" ]; do
@@ -54,22 +44,24 @@ function parse_richpp() {
     #     1. pure text, without any highlighting (`untagged')
     #     2. highlighted text, wrapped in a xml child node indicating
     #        how it is highlighted (`tagged')
-    echo $pp_text | while [ 1 ]; do
+    echo $pp_text | sed -n 's|\\n|<newline/>|g; p' | while [ 1 ]; do
 
         read -r -d '<' untagged_text
-        untagged_text=$(echo $untagged_text | sed -n "$unescape_cmd")
         if [ -n "$default_hl" -a -n "$untagged_text" ]; then
             highlighters="$highlighters $line.$col+${#untagged_text}|$default_hl"
         fi
-        update_loc "$untagged_text"
+        (( col = col + ${#untagged_text} ))
 
         read -r -d '>' tag
         if [ "${tag:(-1):1}" = "/" ]; then
+            if [ "$tag" = '<newline/' ]; then
+                output="$output\n"
+                (( line = line + 1, col = 1 ))
+            fi
             continue
         fi
         read -r -d '<' tagged_text
         read -r -d '>'
-        tagged_text=$(echo $tagged_text | sed -n "$unescape_cmd")
         case $tag in
             # TODO: check Coq's source code for a more complete list
             # TODO: use custom faces
@@ -92,7 +84,7 @@ function parse_richpp() {
                 highlighters="$highlighters $line.$col+${#tagged_text}|module"
                 ;;
         esac
-        update_loc "$tagged_text"
+        (( col = col + ${#tagged_text} ))
 
         output="$output$untagged_text$tagged_text"
 
@@ -100,7 +92,7 @@ function parse_richpp() {
             if [ -n "$line_var" ]; then
                 export $line_var=$line
             fi
-            printf "%s\n%s\n" "$highlighters" "$output"
+            printf "%s\n%s\n" "$highlighters" "$output" | sed -n "$unescape_cmd"
             break
         fi
     done
