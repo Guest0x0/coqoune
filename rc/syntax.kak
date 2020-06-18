@@ -13,7 +13,7 @@ hook global BufSetOption filetype=coq %{
     require-module coqoune-syntax
 
     # override the Coq indent hook bundled with kakoune
-    remove-hooks buffer InsertChar \n
+    remove-hooks buffer coq-indent
     hook buffer InsertChar \n -group coq-indent coq-copy-indent-on-newline
 
     set-option buffer static_words %opt{coq_static_words}
