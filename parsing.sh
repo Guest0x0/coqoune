@@ -13,7 +13,6 @@
 function parse_richpp() {
     local line=$1
     local col=1
-    
 
     shift 1
     while [ ! -z "$1" ]; do
@@ -34,65 +33,92 @@ function parse_richpp() {
     # trim '<richpp><pp><_>' and '</_></pp></richpp>'
     pp_text=${pp_text:15:-18}
 
-    # sed command to unescape the text
-    unescape_cmd='s/&amp;nbsp;/ /g; s/&amp;/\&/g; s/&lt;/</g; s/&gt;/>/g; p'
-
     output=""
     highlighters=""
 
+    hl_line=1
+    hl_col=1
     # Coq's richpp output may contains:
     #     1. pure text, without any highlighting (`untagged')
     #     2. highlighted text, wrapped in a xml child node indicating
     #        how it is highlighted (`tagged')
-    echo $pp_text | sed -n 's|\\n|<newline/>|g; p' | while [ 1 ]; do
+    printf "%s\n" "$pp_text" \
+        | sed -n '
+            s|&lt;|<lt/>|g;
+            s|&gt;|<gt/>|g;
+            s|&amp;nbsp;|<spc/>|g;
+            s/&amp;/\&/g;
+            s|&apos;|<apos/>|g;
+            s|\\n|<newline/>|g;
+            p' \
+        | while [ 1 ]; do
 
-        read -r -d '<' untagged_text
-        if [ -n "$default_hl" -a -n "$untagged_text" ]; then
-            highlighters="$highlighters $line.$col+${#untagged_text}|$default_hl"
-        fi
-        (( col = col + ${#untagged_text} ))
+        read -r -d '<' text
+        output="$output$text"
+        (( col = col + ${#text} ))
 
         read -r -d '>' tag
-        if [ "${tag:(-1):1}" = "/" ]; then
-            if [ "$tag" = '<newline/' ]; then
+        case "$tag" in
+            ( 'newline/' )
                 output="$output\n"
                 (( line = line + 1, col = 1 ))
-            fi
-            continue
-        fi
-        read -r -d '<' tagged_text
-        read -r -d '>'
-        case $tag in
-            # TODO: check Coq's source code for a more complete list
-            # TODO: use custom faces
-            ( 'constr.keyword' )
-                highlighters="$highlighters $line.$col+${#tagged_text}|keyword"
                 ;;
-            ( 'constr.variable' )
-                highlighters="$highlighters $line.$col+${#tagged_text}|variable"
+            ( 'lt/' )
+                output="$output<"
+                (( col = col + 1 ))
                 ;;
-            ( 'constr.reference' )
-                highlighters="$highlighters $line.$col+${#tagged_text}|variable"
+            ( 'gt/' )
+                output="$output>"
+                (( col = col + 1 ))
                 ;;
-            ( 'constr.notation' )
-                highlighters="$highlighters $line.$col+${#tagged_text}|operator"
+            ( 'spc/' )
+                output="$output "
+                (( col = col + 1 ))
                 ;;
-            ( 'constr.type' )
-                highlighters="$highlighters $line.$col+${#tagged_text}|type"
+            ( 'apos/' )
+                output="$output'"
+                (( col = col + 1 ))
                 ;;
-            ( 'constr.path' )
-                highlighters="$highlighters $line.$col+${#tagged_text}|module"
+            ( * )
+                if [ "${tag:0:1}" = "/" ]; then
+                    case $tag in
+                        # TODO: check Coq's source code for a more complete list
+                        # TODO: use custom faces
+                        ( '/constr.keyword' )
+                            highlighters="$highlighters $hl_line.$hl_col,$line.$col|keyword"
+                            ;;
+                        ( '/constr.variable' )
+                            highlighters="$highlighters $hl_line.$hl_col,$line.$col|variable"
+                            ;;
+                        ( '/constr.reference' )
+                            highlighters="$highlighters $hl_line.$hl_col,$line.$col|variable"
+                            ;;
+                        ( '/constr.notation' )
+                            highlighters="$highlighters $hl_line.$hl_col,$line.$col|operator"
+                            ;;
+                        ( '/constr.type' )
+                            highlighters="$highlighters $hl_line.$hl_col,$line.$col|type"
+                            ;;
+                        ( '/constr.path' )
+                            highlighters="$highlighters $hl_line.$hl_col,$line.$col|module"
+                            ;;
+                    esac
+                    hl_type=""
+                    hl_line=$line
+                    hl_col=$col
+                else
+                    hl_type=$tag
+                    hl_line=$line
+                    hl_col=$col
+                fi
                 ;;
         esac
-        (( col = col + ${#tagged_text} ))
 
-        output="$output$untagged_text$tagged_text"
-
-        if [ -z "$untagged_text" -a -z "$tag" -a -z "$tagged_text" ]; then
+        if [ -z "$text" ] && [ -z "$tag" ]; then
             if [ -n "$line_var" ]; then
                 export $line_var=$line
             fi
-            printf "%s\n%s\n" "$highlighters" "$output" | sed -n "$unescape_cmd"
+            printf "%s\n%s\n" "$highlighters" "$output"
             break
         fi
     done
@@ -156,8 +182,8 @@ function parse_goals() {
         ) | parse_richpp 1 | (
             read highlighters
             read -r content
-            printf "%s\n" "$highlighters"
-            printf "$content"
+            printf -- "%s\n" "$highlighters"
+            printf -- "$content"
         )
     else # We are not inside a proof at all
         printf "\n\n"
