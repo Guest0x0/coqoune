@@ -33,27 +33,30 @@ fi
 mkdir $tmpdir
 
 # The structure of coqoune event loop is as follows:
-# 1. all events, either from the user or from coqidetop's reply, are sent to the fifo $in_pipe
+# 1. All events, either from the user or from coqidetop's reply, are sent to the fifo $in_pipe
 #    (after some pre-processing) and handled in the first while loop below. All commands,
 #    together with all attached data, must be in a single line, so that writing the command
 #    to $in_pipe would be atomic.
+#
+#    The general rule is command name + space + extra args, the detailed format of each
+#    command is documented below, in the main event loop.
 in_pipe="$tmpdir/in"
 mkfifo $in_pipe
 exec 3<> $in_pipe
 
-# 2. commands that are received, but not yet sent to coqidetop, are stored in $todo_list,
+# 2. Commands that are received, but not yet sent to coqidetop, are stored in $todo_list,
 #    from earliest to latest, in the form:
 #        index:       i      i + 1  i + 2
 #        content: timestamp command  xml
 #    one command should be removed from $todo_list after it is sent.
 #
-# 3. commands that are already sent to coqidetop, but whose reply is not yet received
+# 3. Commands that are already sent to coqidetop, but whose reply is not yet received
 #    and processed, are stored in $sent_list. Only the name of the command is stored.
 #    A command should be removed from $sent_list after its reply is processed.
 todo_list=()
 sent_list=()
 
-# 4. synchronization is done by $sent_timestamp and $done_timestamp. When coqoune
+# 4. Synchronization is done by $sent_timestamp and $done_timestamp. When coqoune
 #    receives a user command from $in_pipe state, the $sent_timestamp should be incremented.
 #    When the reply of that command is processed, $done_timestamp should be incremented.
 #    Synchronization is done as long as $sent_timestamp and $done_timestamp are equal,
@@ -66,51 +69,53 @@ sent_list=()
 sent_timestamp=0
 done_timestamp=0
 
-# 5. when coqidetop reports an error, it is possible that some other command, unaware of
+# 5. When coqidetop reports an error, it is possible that some other command, unaware of
 #    the error, has been received by coqoune and has been put into $todo_list (but they
 #    could never be sent, thanks to the sync mechanism), and some other commands may have
-#    not yet been, but will be, received by coqoune (for example, add commands that are at
+#    not yet been, but will be, received by coqoune (for example, 'add' commands that are at
 #    the stage of parsing source file). Continue sending these commands as if there is no
-#    error at all would result in more errors, hence the $state variable is here.
+#    error at all would result in more errors, hence the $state variable is used.
 #
 #    $state can be either "error" or "ok". When $state is "ok", everything works normally
 #    and there is no error known. When an error occurs, the "error" command is sent to
 #    $in_pipe. Commands in $in_pipe before the command, if any, won't be sent until "error"
 #    is received, because of the sync mechanism. When the error command is received, $state
-#    is set to "error" and $todo_list is cleaned. Hence no command after the command that
-#    produces error could be sent. Because of 'not yet received' commands mentioned above,
-#    all commands received when $state is "error" will be ignored, and $todo_list should
-#    always be empty, with the exception of the "user-input" command, which will turn $state
-#    to "ok". "user-input" indicates an explicit input from the user, and indicates that
-#    the user is aware of the error here.
+#    is set to "error" and $todo_list is cleaned. Hence no command after the failed command
+#    could be sent. Because of 'not yet received' commands mentioned above, all commands
+#    received when $state is "error" will be ignored, and $todo_list should always be empty,
+#    with the exception of the "user-input" command, which will turn $state to "ok".
+#    "user-input" indicates an explicit input from the user, as well as that the user is
+#    already aware of the error.
 state=ok
 
-# 6. information about coq commands sent to coqoune is recorded in $location_list.
+# 6. Information about coq commands sent to coqoune is recorded in $location_list.
 #    $location_list is an array of the form:
-#        index:    i    i + 1    i + 2
-#        content: line   col   state_id
+#        index:    3i   3i + 1    3i + 2
+#        content: line    col    state_id
 #    where $line and $col mark the end position of an added coq command, and $state_id is the
 #    coq state_id *after* the command is added.
 #
 #    $location_list should be in increasing order of locations.
 source $coqoune_path/location_list.sh
 
-# 7. the goal and message output of coq are repectively stored in $goal_file and $res_file
-#    (both are regular files).
-#
-#    to distinguish feedback messages and clean the result file properly, each command with
-#    potential useful feedback (e.g. 'query') should use $sent_timestamp as the route. The
-#    variable $res_route tracks feedback from which route the current result file is containing.
-#    If the route from a new feedback message differs from $res_route, the result file should be
-#    cleaned.
+# 7. The goal and message output of coq are repectively stored in $goal_file and $res_file
+#    (both are regular files). Debug log will be sent to $log_file, which will be automatically
+#    deleted when coqoune exits, but can be manually dumped by the user.
 goal_file="$tmpdir/goal"
 res_file="$tmpdir/result"
 log_file="$tmpdir/log"
 
+# 8. To distinguish feedback messages and clean the result file properly, each command with
+#    potential useful feedback (e.g. 'query') should use $sent_timestamp as the route. The
+#    variable $res_route tracks feedback from which route the current result file is containing.
+#    If the route from a new feedback message differs from $res_route, the result file should be
+#    cleaned.
 res_route=$sent_timestamp
 
-
+# Utilities for parsing visual output from Coq
 source $coqoune_path/parsing.sh
+
+# Utilities for interaction with kakoune
 source $coqoune_path/kak_util.sh
 
 
@@ -274,13 +279,14 @@ while read -r cmd arg <$in_pipe; do
         ( 'error' )
 #     After a space in $in_pipe, following "error", should be the xml error message from coqidetop,
             error=$arg
-            echo "$error" \
+            ( echo "$error" \
                 | xmllint --xpath '/value[@val="fail"]/richpp' - \
                 | parse_richpp 1 \
-                | kak_refresh_result
+                | kak_refresh_result ) &
             case "${sent_list[0]}" in
 #     When 'add' commands or 'goal' commands trigger an error, the last added commands is the cause,
-#     hence undo it.
+#     hence undo it. (A 'goal' command should only occur after 'add', 'back' or 'back-to', while the
+#     latter two never caule a 'goal' command to fail)
                 ( add:* | 'goal' )
                     loclist_pop
                     state="error"
