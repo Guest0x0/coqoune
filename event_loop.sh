@@ -149,7 +149,7 @@ function flush_todo_list() {
          else
              printf "$xml\n"
          fi
-         sent_list=(${sent_list[@]} "$cmd")
+         sent_list=("${sent_list[@]}" "$cmd")
          todo_list=("${todo_list[@]:3}")
      fi
 }
@@ -375,26 +375,29 @@ while read -r cmd arg <$in_pipe; do
     esac
     flush_todo_list
 done | coqidetop -main-channel stdfds | while read -r -d '>' content; do
-    # escape possible newlines
-    content=$(echo "$content" \
-        | sed -n 's/&nbsp;/\&amp;nbsp;/g; s/\\/\\\\/g; p' \
-        | while read line; do
-            printf "%s" "$line\\n"
-        done)
-    # remove the last one
-    content="${content:0:-2}"
     output="$output$content>"
     if [ "${content:(-7):7}" = "</value" ]; then
-        printf "coqidetop: value: %s\n" "$output" >&2
+        # escape possible newlines
+        output=$(echo "$output" \
+            | sed -n 's/&nbsp;/\&amp;nbsp;/g; s/\\/\\\\/g; p' \
+            | while read line; do
+                printf "%s" "$line\\n"
+            done)
+        printf "coqidetop: value: %s\n" "${output:0:(-2)}" >&2
         if [ "${output:12:4}" = 'good' ];then
-            printf "value %s\n" "$output" >$in_pipe
+            printf "value %s\n" "${output:0:(-2)}" >$in_pipe
         else
-            printf "error %s\n" "$output" >$in_pipe
+            printf "error %s\n" "${output:0:(-2)}" >$in_pipe
         fi
         output=""
     elif [ "${content:(-10):10}" = "</feedback" ]; then
-        printf "coqidetop: feedback: %s\n" "$output" >&2
-        printf "feedback %s\n" "$output" >$in_pipe
+        output=$(echo "$output" \
+            | sed -n 's/&nbsp;/\&amp;nbsp;/g; s/\\/\\\\/g; p' \
+            | while read line; do
+                printf "%s" "$line\\n"
+            done)
+        printf "coqidetop: feedback: %s\n" "${output:0:(-2)}" >&2
+        printf "feedback %s\n" "${output:0:(-2)}" >$in_pipe
         output=""
     fi
 done
