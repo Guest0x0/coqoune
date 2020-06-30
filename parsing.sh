@@ -150,7 +150,7 @@ function parse_goals() {
                 printf "\n%s\n" "$message"
                 return
             fi
-            local goal_content="There are no current goals left."
+            local goal_content="There are no current goals left.\\n"
             local goal_content="$goal_content But there are $((${#goals[@]} / 3)) background goals:"
         fi
 
@@ -164,14 +164,18 @@ function parse_goals() {
         #     2. let $parse_richpp parse the whole goal contents
         #     3. (last sub-shell) output the result
         ( printf '<richpp><pp><_>'
-          printf '%s\\n\\n' "$goal_content"
+          printf '%s\\n' "$goal_content"
           while [ "$index" -lt "${#goals[@]}" ]; do
-              for hyp in $(echo ${goals[index + 1]} | xmllint --xpath '/list/child::richpp' - 2>/dev/null); do
-                  printf '%s\\n' "${hyp:15:-18}"
-              done
+              printf '\\n'
 
-              # trim `<string>...</string>'
-              # local goal_id=${goals[index]:8:-9}
+              if [ "${#goals[@]}" -eq 3 ]; then
+                  for hyp in $(echo ${goals[index + 1]} | xmllint --xpath '/list/child::richpp' - 2>/dev/null); do
+                      printf '%s\\n' "${hyp:15:-18}"
+                  done
+              else
+                  printf '...\\n'
+              fi
+
               printf -- '-------------------------------(%s)\\n' "$goal_id"
               (( goal_id = goal_id + 1 ))
 
