@@ -117,6 +117,31 @@ Available options are:
 These shells are tried from up to down, and the first available is used by default.
 You can set the option manually to specify the shell to use.
 
+For key-bindings, coqoune does not bundle any.
+You also need to call `coq-start` somewhere manually.
+Here's an example config:
+```
+hook global WinSetOption filetype=coq %{
+    coq-start
+
+    declare-user-mode coq
+
+    map buffer user c ": enter-user-mode coq<ret>" \
+        -docstring "enter the Coq user mode"
+
+    map buffer coq c ": enter-user-mode -lock coq<ret>" \
+        -docstring "stay in the Coq user mode"
+
+    map buffer coq k ": coq-back<ret>" \
+        -docstring "undo last sent command"
+
+    map buffer coq j ": coq-next<ret>" \
+        -docstring "send the next command to Coq"
+
+    map buffer coq <ret> ": coq-to-cursor<ret>" \
+        -docstring "move tip to main cursor"
+}
+```
 
 ## 4. License
 This software is distributed under the zlib license.
