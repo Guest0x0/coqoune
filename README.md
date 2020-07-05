@@ -9,15 +9,19 @@ featuring a CoqIDE-like experience with interactive goal & feedback display.
 ## 1. Installation
 
 ### Dependency
-Coqoune is implemented using POSIX shell,
+Coqoune is implemented using shell scripts,
 so it should work on all *nix systems.
+Note that coqoune uses several features not found in POSIX, like arrays.
+So you must have one of zsh, bash or ksh installed to use coqoune.
+But you don't have to use one of these as your user's shell.
+Just have them in your `$PATH`, and coqoune will choose a suitable one.
 However there are several runtime dependencies:
 
-> the coqidetop command
+1. the coqidetop command
  
-> the xmllint command from libxml2
+2. the xmllint command from libxml2
  
-> standard POSIX utilities 
+3. standard POSIX utilities 
 
 ### Manual Installation
 do
@@ -100,6 +104,18 @@ and dump coqoune log to the file (for debugging & trouble-shooting).
 The face `coqoune_processed` is used to highlight `processed` region.
 By default it simply underline the region,
 you can set it to alter the visual effect.
+
+The option `coqoune_shell` is used to determine which shell is used to execute coqoune's scripts.
+Available options are:
+
+1. zsh
+
+2. bash
+
+3. ksh
+
+These shells are tried from up to down, and the first available is used by default.
+You can set the option manually to specify the shell to use.
 
 
 ## 4. License
