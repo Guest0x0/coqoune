@@ -1,4 +1,8 @@
-#!/bin/sh
+
+# Compability issues
+if [ -n "$ZSH_VERSION" ]; then
+    emulate ksh
+fi
 
 coqoune_path=${0:0:(-14)}
 

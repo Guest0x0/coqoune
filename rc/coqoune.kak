@@ -1,8 +1,18 @@
 
 
-declare-option str coqoune_path %sh{
+declare-option -hidden str coqoune_path %sh{
     echo ${kak_source:0:-15}
 }
+
+declare-option -docstring "
+    The shell used to execute coqoune scripts.
+    Possible options are:
+        1. bash
+        2. zsh
+        3. ksh
+    The default will be the first available, from
+    up to down.
+" str coqoune_shell bash
 
 # source syntax file
 source "%opt{coqoune_path}/rc/syntax.kak"
@@ -13,9 +23,7 @@ define-command coq-start -params 0 %{
 
 # init the coqoune scripts
     nop %sh{
-        ( $kak_opt_coqoune_path/coqoune.sh -s $kak_session user-input
-          $kak_opt_coqoune_path/coqoune.sh -s $kak_session init
-        ) 1>/dev/null 2>&1 &
+         $kak_opt_coqoune_path/coqoune.sh -s $kak_session init $kak_opt_coqoune_shell 1>/dev/null 2>&1 &
     }
 
 # hooks for cleanup
@@ -31,8 +39,10 @@ define-command coq-start -params 0 %{
     evaluate-commands -draft %{
         edit -scratch '*goal*'
         edit -scratch '*result*'
+        declare-option -hidden str coqoune_goal_buffer '*goal*'
+        declare-option -hidden str coqoune_result_buffer '*result*'
     }
-    evaluate-commands -draft -buffer '*goal*' %{
+    evaluate-commands -draft -buffer %opt{coqoune_goal_buffer} %{
         set-option buffer filetype coq-goal
     }
 
@@ -40,7 +50,7 @@ define-command coq-start -params 0 %{
     # highlighter for marking commands already processed
     # `coqoune_processed' should contain only one region
     declare-option -hidden range-specs coqoune_processed_highlighters %val{timestamp}
-    evaluate-commands %{
+    evaluate-commands -buffer %opt{coqoune_buffer} %{
         add-highlighter buffer/coqoune_processed ranges coqoune_processed_highlighters
     }
 
@@ -49,12 +59,12 @@ define-command coq-start -params 0 %{
 
     # semantic highlighters based on coq's output
     declare-option -hidden range-specs coqoune_goal_highlighters     %val{timestamp}
-    evaluate-commands -buffer '*goal*' %{
+    evaluate-commands -buffer %opt{coqoune_goal_buffer} %{
         add-highlighter buffer/coqoune_goal ranges coqoune_goal_highlighters
     }
 
     declare-option -hidden range-specs coqoune_result_highlighters   %val{timestamp}
-    evaluate-commands -buffer '*result*' %{
+    evaluate-commands -buffer %opt{coqoune_result_buffer} %{
         add-highlighter buffer/coqoune_result ranges coqoune_result_highlighters
     }
 
@@ -191,4 +201,5 @@ define-command coq-start -params 0 %{
                 cp /tmp/coqoune-$kak_session/log $1
             }
         }
+
 }

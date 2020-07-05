@@ -1,5 +1,3 @@
-#!/bin/sh
-
 
 # $1: a line number for generating `range-specs' for highlighting,
 # -line_var (optional): a variable to feedback line number
@@ -135,8 +133,11 @@ function parse_goals() {
     then
         local goals=""
         local highlighters=""
-        if goals=($(echo "${all_goals[0]}" | xmllint --xpath '/list/child::goal/child::*' - 2>/dev/null));
+        if goals=($(printf '%s\n' "${all_goals[0]}" | xmllint --xpath '/list/child::goal/child::*' - 2>/dev/null));
         then # There are current goals available, display them only
+            for elem in ${all_goals[@]}; do
+                printf '%s\n' "$elem" >&2
+            done
             local goal_content="$((${#goals[@]} / 3)) goals:"
         else # There are no current goals, display the nearest layer of background goals
             local background_goals=($(echo ${all_goals[1]} | xmllint --xpath '/list/child::pair' - 2>/dev/null))
@@ -179,7 +180,8 @@ function parse_goals() {
               printf -- '-------------------------------(%s)\\n' "$goal_id"
               (( goal_id = goal_id + 1 ))
 
-              printf '%s\\n' "${goals[index + 2]:15:-18}"
+              printf 'goal: %s\n' "${goals[index + 2]}" >&2
+              printf '%s\\n' "${goals[index + 2]:15:(-18)}"
               (( index = $index + 3 ))
           done
           printf '</_></pp></richpp>'

@@ -1,4 +1,3 @@
-#!/bin/sh
 
 # `location_list' is an array of the form
 #     line{1}, col{1}, state_id{1}, ..., line{n}, col{n}, state_id{n}

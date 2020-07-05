@@ -22,11 +22,6 @@ fi
 
 in_pipe="/tmp/coqoune-$session/in"
 
-if [ ! -e "$in_pipe" ]; then
-    echo "spawning ..."
-    $coqoune_path/event_loop.sh -s $session
-fi
-
 if [ -z "$1" ]; then
     exit 0
 fi
@@ -42,7 +37,11 @@ function add() {
 }
 
 case $1 in
-    ( 'user-input' | 'init' | 'quit' | 'goal' | 'back' | 'back-to' )
+    ( 'init' )
+        $2 $coqoune_path/event_loop.sh -s $session
+        echo $1 >$in_pipe
+        ;;
+    ( 'user-input' | 'quit' | 'goal' | 'back' | 'back-to' )
         echo $1 >$in_pipe
         ;;
     ( 'add' )

@@ -1,4 +1,3 @@
-#!/bin/sh
 
 function kak_refresh_processed() {
     line=${location_list[-3]}
@@ -27,10 +26,12 @@ function kak_refresh_error() {
 function kak_refresh_goal() {
     read highlighters
     cat - > $goal_file
-    ( printf "execute-keys -buffer '*goal*' %%{"
-      printf " %%|cat<space>/tmp/coqoune-$session/goal<ret> }\n"
-      printf "evaluate-commands -buffer '*goal*' %%{"
-      printf " set-option buffer coqoune_goal_highlighters %%val{timestamp} $highlighters }\n"
+    ( printf "execute-keys -buffer '*goal*' %%{
+          %%|cat<space>/tmp/coqoune-$session/goal<ret>
+      }\n"
+      printf "evaluate-commands -buffer '*goal*' %%{
+          set-option buffer coqoune_goal_highlighters %%val{timestamp} %s
+      }\n" "$highlighters"
     ) | kak -p $session
 }
 
