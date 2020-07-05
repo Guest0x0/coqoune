@@ -5,19 +5,33 @@ declare-option -hidden str coqoune_path %sh{
 }
 
 declare-option -docstring "
-    The shell used to execute coqoune scripts.
+    The name of the shell used to execute coqoune scripts.
     Possible options are:
-        1. bash
-        2. zsh
+        1. zsh
+        2. bash
         3. ksh
-    The default will be the first available, from
-    up to down.
-" str coqoune_shell bash
+    The default will be the first available, from up to down.
+" str coqoune_shell %sh{
+    if zsh --help >/dev/null 2>&1; then
+        echo zsh
+    elif bash --help >/dev/null 2>&1; then
+        echo bash
+    elif ksh --help >/dev/null 2>&1; then
+        echo ksh
+    fi
+}
 
 # source syntax file
 source "%opt{coqoune_path}/rc/syntax.kak"
 
 define-command coq-start -params 0 %{
+
+# Check for capabilities
+    evaluate-commands %sh{
+        if [ -z "$kak_opt_coqoune_path" -o -z "$kak_opt_coqoune_shell" ]; then
+            echo fail
+        fi
+    }
 
     declare-option -hidden str coqoune_buffer %val{bufname}
 
