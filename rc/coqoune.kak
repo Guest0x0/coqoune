@@ -101,19 +101,30 @@ define-command coq-start -params 0 %{
                 read -d '.' line0 || line0=1
                 read -d '|' col0  || col0=1
                 case $1 in
-                    ( 'next' | 'to' )
+                    ( 'next' ) 
                         keys="$line0"gghGe
-                        keys="$keys<a-|>$kak_opt_coqoune_path/coqoune.sh -s $kak_session"
-                        if [ "$1" = 'next' ]; then
-                            keys="$keys next $line0 $col0"
-                        else
-                            keys="$keys to $line0 $col0 $kak_cursor_line $kak_cursor_column"
-                        fi
+                        keys="$keys<a-|>$kak_opt_coqoune_shell $kak_opt_coqoune_path/parse_command.sh"
+                        keys="$keys $line0 $col0 -next|"
+                        keys="$keys $kak_opt_coqoune_path/coqoune.sh -s $kak_session add"
                         echo "$keys<ret>" | sed -n 's/ /<space>/g; p'
+                        ;;
+                    ( 'to' )
+                        if [ "$line0" -gt "$kak_cursor_line" ] || \
+                           [ "$line0" -eq "$kak_cursor_line" -a "$col0" -ge "$kak_cursor_column" ];
+                        then
+                            $kak_opt_coqoune_path/coqoune.sh -s $kak_session back-to:$kak_cursor_line.$kak_cursor_column
+                            exit 0
+                        else
+                            keys="$line0"gghGe
+                            keys="$keys<a-|>$kak_opt_coqoune_shell $kak_opt_coqoune_path/parse_command.sh"
+                            keys="$keys $line0 $col0 $kak_cursor_line $kak_cursor_column|"
+                            keys="$keys $kak_opt_coqoune_path/coqoune.sh -s $kak_session add"
+                            echo "$keys<ret>" | sed -n 's/ /<space>/g; p'
+                        fi
                         ;;
                     ( 'back' )
                         $kak_opt_coqoune_path/coqoune.sh -s $kak_session back
-                        exit 1
+                        exit 0
                         ;;
                 esac
             )

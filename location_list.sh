@@ -30,7 +30,7 @@ function loclist_cut_at_state_id() {
         local col=${location_list[i - 2]}
         local line=${location_list[i - 3]}
         if [ "$state_id" = "$1" ]; then
-            location_list=("${location_list[@]:0:i}")
+            location_list=("${location_list[@]:0:$i}")
             echo $line $col
             return
         fi
@@ -56,7 +56,7 @@ function loclist_cut_at_loc() {
         if [ "$line" -lt "$line0" ] ||
            [ "$line" -eq "$line0" -a "$col" -le "$col0" ];
         then
-            location_list=(${location_list[@]:0:i})
+            location_list=(${location_list[@]:0:$i})
             echo $line $col $state_id
             return
         fi

@@ -1,6 +1,13 @@
-#!/bin/sh
+
+if [ -n "$ZSH_VERSION" ]; then
+    emulate ksh
+fi
 
 # $1, $2: start line number and column offset
+# -next ($3) (optional): only parse the next command
+# $3, $4 (optional):
+#     parse until line $3, col $4. The first command *ending* at or after $3.$4 will be
+#     the last command to be parsed.
 # read from stdin a buffer (with complete first line), parse it and output it by commands.
 # stdout (loop until buffer end):
 #     (first line) space-separated line and column of the end position
@@ -9,6 +16,17 @@
 line=$1
 # The start column offset of input
 col_offset=$2
+
+if [ "$3" = '-next' ]; then
+    dest_line=1
+    dest_col=1
+elif [ -n "$3" -a -n "$4" ]; then
+    dest_line=$3
+    dest_col=$4
+else
+    dest_line=999999999
+    dest_col=999999999
+fi
 
 # [buffer] is a cached line of input.
 # For performance, input is read lazily.
@@ -32,7 +50,7 @@ state_list=("e")
 function ask_more_input() {
     # since the command may not contain the last line in complete,
     # every line is put into output until it is completely parsed.
-    content="${buffer:(col_offset - 1)}"
+    content="${buffer:($col_offset - 1)}"
     if [ -n "$output" ]; then
         output="$output\n$content"
     else
@@ -53,8 +71,12 @@ function ask_more_input() {
 function output() {
     echo $line $(( i + 1 ))
     [ -n "$output" ] && printf "%s%s" "$output" "\n"
-    [ "$i" -gt 0 ] && printf "%s" "${buffer:(col_offset - 1):(i + 1 - col_offset)}"
+    [ "$i" -gt 0 ] && printf "%s" "${buffer:($col_offset - 1):($i + 1 - $col_offset)}"
     printf "\n"
+
+    if [ "$line" -gt "$dest_line" ] || [ "$line" -eq "$dest_line" -a "$i" -ge "$dest_col" ]; then
+        exit 0
+    fi
 
     (( col_offset = i + 1 ))
     # if '.' is followed by '\n', the previous line will be appended
@@ -71,9 +93,9 @@ while [ 1 ]; do
     fi
     case ${state_list[0]} in
         ( 's' ) # inside a string
-            if [ "${buffer:i:2}" = '""' ]; then
+            if [ "${buffer:$i:2}" = '""' ]; then
                 (( i = i + 2 ))
-            elif [ "${buffer:i:1}" = '"' ]; then
+            elif [ "${buffer:$i:1}" = '"' ]; then
                 state_list=(${state_list[@]:1})
                 (( i = i + 1 ))
             else
@@ -81,13 +103,13 @@ while [ 1 ]; do
             fi
             ;;
         ( 'c' ) # inside a comment
-            if [ "${buffer:i:1}" = '"' ]; then
+            if [ "${buffer:$i:1}" = '"' ]; then
                 state_list=("s" ${state_list[@]})
                 (( i = i + 1 ))
-            elif [ "${buffer:i:2}" = '(*' ]; then
+            elif [ "${buffer:$i:2}" = '(*' ]; then
                 state_list=("c" ${state_list[@]})
                 (( i = i + 2 ))
-            elif [ "${buffer:i:2}" = '*)' ]; then
+            elif [ "${buffer:$i:2}" = '*)' ]; then
                 state_list=(${state_list[@]:1})
                 (( i = i + 2 ))
             else
@@ -95,7 +117,7 @@ while [ 1 ]; do
             fi
             ;;
         ( '-' | '*' | '+' ) # bullets
-            if [ "${buffer:i:1}" = "${state_list[0]}" ]; then
+            if [ "${buffer:$i:1}" = "${state_list[0]}" ]; then
                 (( i = i + 1 ))
             else
                 output
@@ -103,16 +125,16 @@ while [ 1 ]; do
             fi
             ;;
         ( * ) # inside expr
-            if [ "${buffer:i:1}" = '"' ]; then
+            if [ "${buffer:$i:1}" = '"' ]; then
                 state_list=("s" ${state_list[@]})
                 (( i = i + 1 ))
-            elif [ "${buffer:i:2}" = '(*' ]; then
+            elif [ "${buffer:$i:2}" = '(*' ]; then
                 state_list=("c" ${state_list[@]})
                 (( i = i + 2 ))
-            elif [ "${buffer:i:1}" = '.' ]; then
+            elif [ "${buffer:$i:1}" = '.' ]; then
                 (( i = i + 1 ))
                 # '.' marks the end of a command, iff it is followed by blank characters.
-                case "${buffer:i:1}" in
+                case "${buffer:$i:1}" in
                     ( " " | "\t" | "" )
                         output
                         if [ -z "${state_list[0]}" ]; then
@@ -125,12 +147,12 @@ while [ 1 ]; do
                 esac
             # special care for beginning of expressions
             elif [ "${state_list[0]}" = 'e' ]; then
-                case "${buffer:i:1}" in
+                case "${buffer:$i:1}" in
                     ( " " | "\t" | "" )
                         (( i = i + 1 ))
                         ;;
                     ( '-' | '*' | '+' )
-                        state_list=("${buffer:i:1}" ${state_list[@]})
+                        state_list=("${buffer:$i:1}" ${state_list[@]})
                         (( i = i + 1 ))
                         ;;
                     ( '{' | '}' )

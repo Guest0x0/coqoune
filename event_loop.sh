@@ -131,6 +131,13 @@ function enqueue_command() {
 
 # flush $todo_list, send commands to coqidetop, if possible
 function flush_todo_list() {
+    printf "TODO:\n" >>./log
+    local i=0
+    while [ $i -lt "${#todo_list[@]}" ]; do
+         printf "%s\n" "${todo_list[i]}"
+         (( i = i + 1 ))
+    done >>./log
+    printf "END TODO\n" >>./log
      if [ "${#todo_list[@]}" -gt 0 ] && [ "${todo_list[0]}" = "$done_timestamp" ]; then
          local cmd="${todo_list[1]}"
          printf "to be sent: %s\n" "$cmd" >&2
@@ -153,6 +160,7 @@ function flush_todo_list() {
                  ;;
          esac
          local xml="${todo_list[2]}"
+         printf "%s\n" "$xml" >>./log
          if [ "${#location_list[@]}" -gt 0 ]; then
              printf "$xml\n" "${location_list[-1]}"
          else
@@ -227,7 +235,7 @@ while read -r cmd arg <$in_pipe; do
 # back-to:$line.$col:
 #     undo added commands until before the location $line.$col
         (  back-to:* )
-            loc0=($(echo ${cmd:3} | tr '.' ' '))
+            loc0=($(echo ${cmd:8} | tr '.' ' '))
             line0=${loc0[0]}
             col0=${loc0[1]}
             (( i = ${#todo_list[@]} - 3 ))
@@ -240,7 +248,7 @@ while read -r cmd arg <$in_pipe; do
                     line=${loc[0]}
                     col=${loc[1]}
                     if [ "$line" -gt "$line0" ] || [ "$line" -eq "$line0" -a "$col" -gt "$col0" ]; then
-                        todo_list=("${todo_list[@]:0:i}" "${todo_list[@]:(i + 3)}")
+                        todo_list=("${todo_list[@]:0:$i}" "${todo_list[@]:($i + 3)}")
                         (( sent_timestamp = sent_timestamp - 1 ))
                         continue
                     fi
