@@ -23,6 +23,10 @@ However there are several runtime dependencies:
  
 3. standard POSIX utilities 
 
+These dependencies are generally installed on most systems with Coq installed.
+However on some systems like nixos, where implicitly installed packages won't be in you `$PATH`,
+you should install these dependecies (mostly `libxml2`) manually.
+
 ### Manual Installation
 do
 ```
