@@ -30,6 +30,10 @@ define-command coq-start -params 0 %{
     evaluate-commands %sh{
         if [ -z "$kak_opt_coqoune_path" -o -z "$kak_opt_coqoune_shell" ]; then
             echo fail
+        elif xmllint --version 2>/dev/null && coqidetop --version >/dev/null; then
+            exit 0
+        else
+            echo fail
         fi
     }
 
