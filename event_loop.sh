@@ -131,13 +131,10 @@ function enqueue_command() {
 
 # flush $todo_list, send commands to coqidetop, if possible
 function flush_todo_list() {
-    printf "TODO:\n" >>./log
     local i=0
     while [ $i -lt "${#todo_list[@]}" ]; do
-         printf "%s\n" "${todo_list[i]}"
          (( i = i + 1 ))
-    done >>./log
-    printf "END TODO\n" >>./log
+    done
      if [ "${#todo_list[@]}" -gt 0 ] && [ "${todo_list[0]}" = "$done_timestamp" ]; then
          local cmd="${todo_list[1]}"
          printf "to be sent: %s\n" "$cmd" >&2
@@ -160,7 +157,7 @@ function flush_todo_list() {
                  ;;
          esac
          local xml="${todo_list[2]}"
-         printf "%s\n" "$xml" >>./log
+         printf "%s\n" "$xml" >&2
          if [ "${#location_list[@]}" -gt 0 ]; then
              printf "$xml\n" "${location_list[-1]}"
          else
@@ -185,11 +182,11 @@ while read -r cmd arg <$in_pipe; do
             continue
         fi
     fi
-    case "$cmd" in
+   case "$cmd" in
 # init:
 #     init coqidetop
         ( 'init' )
-            if [ -z "${location_list[@]}" ]; then
+            if [ ${#location_list[@]} -eq 0 ]; then
                 enqueue_command 'init' '<call val="Init"><option val="none"/></call>'
             fi
             ;;
@@ -304,12 +301,14 @@ while read -r cmd arg <$in_pipe; do
                     state="error"
                     todo_list=()
                     xml='<call val="Edit_at"><state_id val="%s"/></call>'
-                    printf "$xml\n" "${location_list[-1]}"
+                    if [ ${#location_list[@]} -gt 0 ]; then
+                        printf "$xml\n" "${location_list[-1]}"
+                    fi
                     sent_list=("${sent_list[@]:1}" "error")
 #     Timestamps will be reset, too. As some commands to be sent that will change
 #     timestamps are now cancelled.
-            (( done_timestamp = sent_timestamp ))
-            (( sent_timestamp = sent_timestamp + 1 ))
+                    (( done_timestamp = sent_timestamp ))
+                    (( sent_timestamp = sent_timestamp + 1 ))
                     ;;
 #     When the last command is 'query', which is irrelevant with the state, simply ignores the error.
                 ( 'query' )
