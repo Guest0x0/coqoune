@@ -155,7 +155,7 @@ define-command coq-start -params 0 %{
     # automatically backward execution on text change 
     define-command -hidden coq-on-text-change -params 0 %{
         nop %sh{ $kak_opt_coqoune_path/coqoune.sh -s $kak_session user-input }
-        nop %sh{
+        echo -debug -- %sh{
             function compare_cursor() {
                 line1=$1
                 col1=$2
@@ -186,14 +186,14 @@ define-command coq-start -params 0 %{
                         while read -d '.'; read -d ','; do
                             read -d '.' line
                             read -d ' ' col
-                            if [ "$(compare_cursor $earliest_line $earliest_col $line $col)" -eq 1 ]; then
+                            if [ "$(compare_cursor $earliest_line $earliest_col $line $col)" = 1 ]; then
                                 earliest_line=$line
                                 earliest_col=$col
                             fi
                         done
                         # if (any part of) the edit happens inside processed region, backward execution
-                        if [ "$(compare_cursor $earliest_line $earliest_col $line0 $col0)" -eq '-1' ]; then
-                            $kak_opt_coqoune_path/coqoune.sh -s $kak_session to $line0 $col0 $earliest_line $earliest_col
+                        if [ "$(compare_cursor $earliest_line $earliest_col $line0 $col0)" = '-1' ]; then
+                            $kak_opt_coqoune_path/coqoune.sh -s $kak_session back-to:$earliest_line.$earliest_col
                         fi
                     )
             )
