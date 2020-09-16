@@ -12,6 +12,7 @@ hook global BufCreate .*\.v %{
 hook global BufSetOption filetype=coq %{
     require-module coq
 
+    remove-hooks window coq-indent
     hook buffer InsertChar \n -group coq-indent coq-copy-indent-on-newline
 
     set-option buffer static_words %opt{coq_static_words}
