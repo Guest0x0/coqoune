@@ -10,10 +10,8 @@ hook global BufCreate .*\.v %{
 # --------------
 
 hook global BufSetOption filetype=coq %{
-    require-module coqoune-syntax
+    require-module coq
 
-    # override the Coq indent hook bundled with kakoune
-    remove-hooks buffer coq-indent
     hook buffer InsertChar \n -group coq-indent coq-copy-indent-on-newline
 
     set-option buffer static_words %opt{coq_static_words}
@@ -21,16 +19,15 @@ hook global BufSetOption filetype=coq %{
 }
 
 hook global BufSetOption filetype=coq-goal %{
-    require-module coqoune-syntax
+    require-module coq
 
     add-highlighter buffer/coq ref coq
 }
 
-provide-module coqoune-syntax %{
+provide-module -override coq %{
 
 # Syntax
 # ------
-
     # This is a `looks sensible' keyword syntax highlighting, far from being correct.
     # Note that only the core language and the proof language is supported,
     # the Ltac language is not (for now).
@@ -117,7 +114,7 @@ provide-module coqoune-syntax %{
 # not based on explicit, unique delimiters, like braces in C-family.
 # So it is difficult to properly indent using only regex...
 # Hence here only a simple mechanism of copying indent is done.
-    define-command -hidden coq-copy-indent-on-newline %{
+    define-command -hidden -override coq-copy-indent-on-newline %{
         evaluate-commands -draft -itersel %{
             try %{ execute-keys -draft k <a-x> s ^\h+ <ret> y gh j P }
         }
