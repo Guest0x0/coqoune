@@ -1,7 +1,7 @@
 
 # Compability issues
 if [ -n "$ZSH_VERSION" ]; then
-    emulate ksh
+    setopt ksharrays
 fi
 
 coqoune_path=${0:0:(-14)}
@@ -168,6 +168,39 @@ function flush_todo_list() {
      fi
 }
 
+function handle_error() {
+        case "${sent_list[0]}" in
+#     When 'add' commands or 'goal' commands trigger an error, the last added commands is the cause,
+#     hence undo it. (A 'goal' command should only occur after 'add', 'back' or 'back-to', while the
+#     latter two never caule a 'goal' command to fail)
+            ( add:* | 'goal' )
+                if [ -n "$1" ]; then
+                    printf 'error at %s\n' "$1" >&2
+                    loclist_cut_at_state_id $1
+                fi
+                loclist_pop
+                printf "loc list: ${location_list[@]}\n" >&2
+                state="error"
+                todo_list=()
+                xml='<call val="Edit_at"><state_id val="%s"/></call>'
+                if [ ${#location_list[@]} -gt 0 ]; then
+                    printf "$xml\n" "${location_list[-1]}"
+                fi
+                sent_list=("${sent_list[@]:1}" "error")
+#     Timestamps will be reset, too. As some commands to be sent that will change
+#     timestamps are now cancelled.
+                (( done_timestamp = sent_timestamp ))
+                (( sent_timestamp = sent_timestamp + 1 ))
+                return 1
+                ;;
+#     When the last command is 'query', which is irrelevant with the state, simply ignores the error.
+            ( 'query' )
+                return 0
+                ;;
+        esac
+}
+
+
 (
 while read -r cmd arg <$in_pipe; do
     printf "cmd: %s\n" "$cmd" >&2
@@ -292,29 +325,7 @@ while read -r cmd arg <$in_pipe; do
                 | xmllint --xpath '/value[@val="fail"]/richpp' - \
                 | parse_richpp 1 \
                 | kak_refresh_result ) &
-            case "${sent_list[0]}" in
-#     When 'add' commands or 'goal' commands trigger an error, the last added commands is the cause,
-#     hence undo it. (A 'goal' command should only occur after 'add', 'back' or 'back-to', while the
-#     latter two never caule a 'goal' command to fail)
-                ( add:* | 'goal' )
-                    loclist_pop
-                    state="error"
-                    todo_list=()
-                    xml='<call val="Edit_at"><state_id val="%s"/></call>'
-                    if [ ${#location_list[@]} -gt 0 ]; then
-                        printf "$xml\n" "${location_list[-1]}"
-                    fi
-                    sent_list=("${sent_list[@]:1}" "error")
-#     Timestamps will be reset, too. As some commands to be sent that will change
-#     timestamps are now cancelled.
-                    (( done_timestamp = sent_timestamp ))
-                    (( sent_timestamp = sent_timestamp + 1 ))
-                    ;;
-#     When the last command is 'query', which is irrelevant with the state, simply ignores the error.
-                ( 'query' )
-                    continue
-                    ;;
-            esac
+            handle_error
             ;;
 # value:
 #     sent from coqoune itself when coqidetop gives a successful '<value val="good">...</value>' reply.
@@ -386,6 +397,14 @@ while read -r cmd arg <$in_pipe; do
                           | xmllint --xpath '/feedback/feedback_content/message/child::richpp' - 2>/dev/null \
                           | parse_richpp $line_count \
                           | kak_refresh_result -incr
+                    msg_level=$(echo "$feedback" | xmllint --xpath '/feedback/feedback_content/message/message_level/attribute::val' - 2>/dev/null)
+                    printf "msg level: %s\n" "$msg_level" >&2
+                    case "$msg_level" in
+                        ( ' val="error"' )
+                            state_id=$(echo "$feedback" | xmllint --xpath '/feedback/state_id/attribute::val' - 2>/dev/null)
+                            handle_error ${state_id:6:(-1)}
+                            ;;
+                    esac
                     ;;
             esac
             ;;
