@@ -83,22 +83,22 @@ function parse_richpp() {
                         # TODO: check Coq's source code for a more complete list
                         # TODO: use custom faces
                         ( '/constr.keyword' )
-                            highlighters="$highlighters $hl_line.$hl_col,$line.$col|keyword"
+                            highlighters="$highlighters $hl_line.$hl_col,$line.$((col - 1))|keyword"
                             ;;
                         ( '/constr.variable' )
-                            highlighters="$highlighters $hl_line.$hl_col,$line.$col|variable"
+                            highlighters="$highlighters $hl_line.$hl_col,$line.$((col - 1))|variable"
                             ;;
                         ( '/constr.reference' )
-                            highlighters="$highlighters $hl_line.$hl_col,$line.$col|variable"
+                            highlighters="$highlighters $hl_line.$hl_col,$line.$((col - 1))|variable"
                             ;;
                         ( '/constr.notation' )
-                            highlighters="$highlighters $hl_line.$hl_col,$line.$col|operator"
+                            highlighters="$highlighters $hl_line.$hl_col,$line.$((col - 1))|operator"
                             ;;
                         ( '/constr.type' )
-                            highlighters="$highlighters $hl_line.$hl_col,$line.$col|type"
+                            highlighters="$highlighters $hl_line.$hl_col,$line.$((col - 1))|type"
                             ;;
                         ( '/constr.path' )
-                            highlighters="$highlighters $hl_line.$hl_col,$line.$col|module"
+                            highlighters="$highlighters $hl_line.$hl_col,$line.$((col - 1))|module"
                             ;;
                     esac
                     hl_type=""
