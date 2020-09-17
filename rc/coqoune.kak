@@ -7,15 +7,15 @@ declare-option -hidden str coqoune_path %sh{
 declare-option -docstring "
     The name of the shell used to execute coqoune scripts.
     Possible options are:
-        1. zsh
-        2. bash
+        1. bash
+        2. zsh
         3. ksh
     The default will be the first available, from up to down.
 " str coqoune_shell %sh{
-    if zsh --help >/dev/null 2>&1; then
-        echo zsh
-    elif bash --help >/dev/null 2>&1; then
+    if bash --help >/dev/null 2>&1; then
         echo bash
+    elif zsh --help >/dev/null 2>&1; then
+        echo zsh
     elif ksh --help >/dev/null 2>&1; then
         echo ksh
     fi

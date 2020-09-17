@@ -147,5 +147,11 @@ hook global WinSetOption filetype=coq %{
 }
 ```
 
-## 4. License
+## 4. Known Issues
+Using `zsh` for `%opt{coqoune_shell}` seems to sometimes mess up the terminal after kakoune quits.
+Using `bash` is fine and `ksh` is not tested.
+A way to solve it is to type `reset` after quiting kakoune.
+Technical details are in (#2).
+
+## 5. License
 This software is distributed under the zlib license.
