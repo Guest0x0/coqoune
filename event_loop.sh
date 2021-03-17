@@ -60,7 +60,11 @@ exec 3<> $in_pipe
 todo_list=()
 sent_list=()
 
-# 4. Synchronization is done by $sent_timestamp and $done_timestamp. When coqoune
+# 4. Commands sent to coqidetop must carry a state id, to indicate at which state the
+#    command should be processed. So the next command cannot be sent until the reply
+#    of the first command is received. Hence some sort of synchronization is necessary.
+#
+#    Synchronization is done by $sent_timestamp and $done_timestamp. When coqoune
 #    receives a user command from $in_pipe state, the $sent_timestamp should be incremented.
 #    When the reply of that command is processed, $done_timestamp should be incremented.
 #    Synchronization is done as long as $sent_timestamp and $done_timestamp are equal,
@@ -111,7 +115,7 @@ log_file="$tmpdir/log"
 
 # 8. To distinguish feedback messages and clean the result file properly, each command with
 #    potential useful feedback (e.g. 'query') should use $sent_timestamp as the route. The
-#    variable $res_route tracks feedback from which route the current result file is containing.
+#    variable $res_route tracks feedback from the route that the current result file contains.
 #    If the route from a new feedback message differs from $res_route, the result file should be
 #    cleaned.
 res_route=$sent_timestamp
@@ -131,41 +135,41 @@ function enqueue_command() {
 
 # flush $todo_list, send commands to coqidetop, if possible
 function flush_todo_list() {
-    local i=0
-    while [ $i -lt "${#todo_list[@]}" ]; do
-         (( i = i + 1 ))
-    done
-     if [ "${#todo_list[@]}" -gt 0 ] && [ "${todo_list[0]}" = "$done_timestamp" ]; then
-         local cmd="${todo_list[1]}"
-         printf "to be sent: %s\n" "$cmd" >&2
-         # Though ugly, these must be put here.
-         # 1. if we change $location_list on receiving these commands, then commands
-         #    *received* before these but not yet *sent* when receiving these, will
-         #    use the wrong state_id when being sent
-         #
-         # 2. if we change $location_list on receiving the reply of these commands,
-         #    then we can't find the suitable state_id for 'Edit_at' here.
-         case "$cmd" in
-             ( 'back' )
-                 loclist_pop
-                 ;;
-             ( back-to:* )
-                 local loc=($(echo ${cmd:8} | tr '.' ' '))
-                 local line="${loc[0]}"
-                 local col="${loc[1]}"
-                 loclist_cut_at_loc "$line" "$col" 1>/dev/null
-                 ;;
-         esac
-         local xml="${todo_list[2]}"
-         printf "%s\n" "$xml" >&2
-         if [ "${#location_list[@]}" -gt 0 ]; then
-             printf "$xml\n" "${location_list[-1]}"
-         else
-             printf "$xml\n"
-         fi
-         sent_list=("${sent_list[@]}" "$cmd")
-         todo_list=("${todo_list[@]:3}")
-     fi
+    if [ "${#todo_list[@]}" -gt 0 ] && [ "${todo_list[0]}" = "$done_timestamp" ]; then
+        local cmd="${todo_list[1]}"
+        printf "to be sent: %s\n" "$cmd" >&2
+        # Though ugly, these must be put here.
+        # 1. if we change $location_list on receiving these commands, then commands
+        #    *received* before these but not yet *sent* when receiving these, will
+        #    use the wrong state_id when being sent
+        #
+        # 2. if we change $location_list on receiving the reply of these commands,
+        #    then we can't find the suitable state_id for 'Edit_at' here.
+        #
+        # The change in $loclist here will affect and only affect those commands
+        # arriving *after* the back* command, which should work under the reduced
+        # location list.
+        case "$cmd" in
+            ( 'back' )
+                loclist_pop
+                ;;
+            ( back-to:* )
+                local loc=($(echo ${cmd:8} | tr '.' ' '))
+                local line="${loc[0]}"
+                local col="${loc[1]}"
+                loclist_cut_at_loc "$line" "$col" 1>/dev/null
+                ;;
+        esac
+        local xml="${todo_list[2]}"
+        printf "%s\n" "$xml" >&2
+        if [ "${#location_list[@]}" -gt 0 ]; then
+            printf "$xml\n" "${location_list[-1]}"
+        else
+            printf "$xml\n"
+        fi
+        sent_list=("${sent_list[@]}" "$cmd")
+        todo_list=("${todo_list[@]:3}")
+    fi
 }
 
 function handle_error() {
@@ -188,13 +192,15 @@ function handle_error() {
                 fi
                 sent_list=("${sent_list[@]:1}" "error")
 #     Timestamps will be reset, too. As some commands to be sent that will change
-#     timestamps are now cancelled.
+#     timestamps are now canceled.
                 (( done_timestamp = sent_timestamp ))
                 (( sent_timestamp = sent_timestamp + 1 ))
                 return 1
                 ;;
 #     When the last command is 'query', which is irrelevant with the state, simply ignores the error.
             ( 'query' )
+                (( done_timestamp = done_timestamp + 1 ))
+                sent_list=("${sent_list[@]:1}")
                 return 0
                 ;;
         esac
@@ -206,7 +212,7 @@ while read -r cmd arg <$in_pipe; do
     printf "cmd: %s\n" "$cmd" >&2
     if [ "$state" = "error" ]; then
 # Index of coqoune commands:
-# 1. user-input
+# user-input
 #     indicates an explicit user input. Terminates "error" state
         if [ "$cmd" = "user-input" ]; then
             state=ok
