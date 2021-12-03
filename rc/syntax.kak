@@ -9,17 +9,18 @@ hook global BufCreate .*\.v %{
 # Initialization
 # --------------
 
-hook global BufSetOption filetype=coq %{
+hook global WinSetOption filetype=coq %{
     require-module coq
 
     remove-hooks window coq-indent
-    hook buffer InsertChar \n -group coq-indent coq-copy-indent-on-newline
+    hook window InsertChar \n -group coq-indent coq-copy-indent-on-newline
 
-    set-option buffer static_words %opt{coq_static_words}
-    add-highlighter buffer/coq ref coq
+    set-option window static_words %opt{coq_static_words}
+    remove-highlighter window/coq
+    add-highlighter window/coq ref coq
 }
 
-hook global BufSetOption filetype=coq-goal %{
+hook global WinSetOption filetype=coq-goal %{
     require-module coq
 
     add-highlighter buffer/coq ref coq
@@ -119,6 +120,5 @@ provide-module -override coq %{
         evaluate-commands -draft -itersel %{
             try %{ execute-keys -draft k <a-x> s ^\h+ <ret> y gh j P }
         }
-}
-
+    }
 }

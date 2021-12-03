@@ -1,7 +1,7 @@
 
 
 declare-option -hidden str coqoune_path %sh{
-    echo ${kak_source:0:-15}
+    echo ${kak_source%/*/*}
 }
 
 declare-option -docstring "
