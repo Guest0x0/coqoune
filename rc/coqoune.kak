@@ -91,12 +91,12 @@ define-command coq-start -params 0 %{
 
     # manually request for goal. Should be called automatically.
     define-command -hidden coq-goal -params 0 %{
-        nop %sh{ $kak_opt_coqoune_path/coqoune.sh -s $kak_session goal }
+        nop %sh{ $kak_opt_coqoune_shell $kak_opt_coqoune_path/coqoune.sh -s $kak_session goal }
     }
 
     # receive a movement command ('next', 'back' or 'to') and send it to coqoune
     define-command -hidden coq-move-command -params 1 %{
-        nop %sh{ $kak_opt_coqoune_path/coqoune.sh -s $kak_session user-input }
+        nop %sh{ $kak_opt_coqoune_shell $kak_opt_coqoune_path/coqoune.sh -s $kak_session user-input }
         execute-keys -draft %sh{
             echo $kak_opt_coqoune_processed_highlighters | (
                 read -d ' ' # timestamp
@@ -109,25 +109,25 @@ define-command coq-start -params 0 %{
                         keys="$line0"gghGe
                         keys="$keys<a-|>$kak_opt_coqoune_shell $kak_opt_coqoune_path/parse_command.sh"
                         keys="$keys $line0 $col0 -next|"
-                        keys="$keys $kak_opt_coqoune_path/coqoune.sh -s $kak_session add"
+                        keys="$keys$kak_opt_coqoune_shell $kak_opt_coqoune_path/coqoune.sh -s $kak_session add"
                         echo "$keys<ret>" | sed -n 's/ /<space>/g; p'
                         ;;
                     ( 'to' )
                         if [ "$line0" -gt "$kak_cursor_line" ] || \
                            [ "$line0" -eq "$kak_cursor_line" -a "$col0" -ge "$kak_cursor_column" ];
                         then
-                            $kak_opt_coqoune_path/coqoune.sh -s $kak_session back-to:$kak_cursor_line.$kak_cursor_column
+                            $kak_opt_coqoune_shell $kak_opt_coqoune_path/coqoune.sh -s $kak_session back-to:$kak_cursor_line.$kak_cursor_column
                             exit 0
                         else
                             keys="$line0"gghGe
                             keys="$keys<a-|>$kak_opt_coqoune_shell $kak_opt_coqoune_path/parse_command.sh"
                             keys="$keys $line0 $col0 $kak_cursor_line $kak_cursor_column|"
-                            keys="$keys $kak_opt_coqoune_path/coqoune.sh -s $kak_session add"
+                            keys="$keys$kak_opt_coqoune_shell $kak_opt_coqoune_path/coqoune.sh -s $kak_session add"
                             echo "$keys<ret>" | sed -n 's/ /<space>/g; p'
                         fi
                         ;;
                     ( 'back' )
-                        $kak_opt_coqoune_path/coqoune.sh -s $kak_session back
+                        $kak_opt_coqoune_shell $kak_opt_coqoune_path/coqoune.sh -s $kak_session back
                         exit 0
                         ;;
                 esac
