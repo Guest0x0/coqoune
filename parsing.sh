@@ -4,7 +4,7 @@
 # -default (optional): a default face to use for unhighlighted text
 # stdin: a `<richpp>...</richpp>' node returned by Coq
 #        (escaped properly to let xmllint admit)
-#        (single line)
+#        (may be multi-line)
 # stdout:
 #     (second line) A kakoune `range-specs' list (without timestamp) for highlighting the goal buffer
 #     (third line) The text of the richpp node
@@ -26,31 +26,30 @@ function parse_richpp() {
         esac
     done
 
-    # don't escape '\'
-    read -r pp_text
-    # trim '<richpp><pp><_>' and '</_></pp></richpp>'
-    pp_text=${pp_text:15:-18}
-
     output=""
     highlighters=""
 
     hl_line=1
     hl_col=1
-    # Coq's richpp output may contains:
-    #     1. pure text, without any highlighting (`untagged')
-    #     2. highlighted text, wrapped in a xml child node indicating
-    #        how it is highlighted (`tagged')
-    printf "%s\n" "$pp_text" \
-        | sed -n '
-            s|&lt;|<lt/>|g;
-            s|&gt;|<gt/>|g;
-            s|&amp;nbsp;|<spc/>|g;
-            s/&amp;/\&/g;
-            s|&apos;|<apos/>|g;
-            s|\\n|<newline/>|g;
-            p' \
-        | while [ 1 ]; do
 
+    # trim '<richpp><pp><_>'
+    tail -c +16 \
+    | sed -n '
+        s|&lt;|<lt/>|g;
+        s|&gt;|<gt/>|g;
+        s|&amp;nbsp;|<spc/>|g;
+        s/&amp;/\&/g;
+        s|&apos;|<apos/>|g;
+        s|\\n|<newline/>|g;
+        p' \
+    | while read line; do
+        printf "%s<newline/>" "$line"
+    done \
+    | while [ 1 ]; do
+        # Coq's richpp output may contains:
+        #     1. pure text, without any highlighting (`untagged')
+        #     2. highlighted text, wrapped in a xml child node indicating
+        #        how it is highlighted (`tagged')
         read -r -d '<' text
         output="$output$text"
         (( col = col + ${#text} ))
@@ -77,6 +76,13 @@ function parse_richpp() {
                 output="$output'"
                 (( col = col + 1 ))
                 ;;
+            ( '/_' )
+                # end of input
+                if [ -n "$line_var" ]; then
+                    export $line_var=$line
+                fi
+                printf "%s\n%s\n" "$highlighters" "$output"
+                break
             ( * )
                 if [ "${tag:0:1}" = "/" ]; then
                     case $tag in
@@ -111,14 +117,6 @@ function parse_richpp() {
                 fi
                 ;;
         esac
-
-        if [ -z "$text" ] && [ -z "$tag" ]; then
-            if [ -n "$line_var" ]; then
-                export $line_var=$line
-            fi
-            printf "%s\n%s\n" "$highlighters" "$output"
-            break
-        fi
     done
 }
 
