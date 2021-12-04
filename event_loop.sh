@@ -4,7 +4,7 @@ if [ -n "$ZSH_VERSION" ]; then
     setopt ksharrays
 fi
 
-coqoune_path=${0:0:(-14)}
+coqoune_path=${0%/*}
 
 session=""
 while [ ! -z $1 ]; do

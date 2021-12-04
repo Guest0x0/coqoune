@@ -41,7 +41,7 @@ define-command coq-start -params 0 %{
 
 # init the coqoune scripts
     nop %sh{
-         $kak_opt_coqoune_path/coqoune.sh -s $kak_session init $kak_opt_coqoune_shell 1>/dev/null 2>&1 &
+         $kak_opt_coqoune_shell $kak_opt_coqoune_path/coqoune.sh -s $kak_session init $kak_opt_coqoune_shell 1>/dev/null 2>&1 &
     }
 
 # hooks for cleanup

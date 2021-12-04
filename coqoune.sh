@@ -1,6 +1,6 @@
 #!/bin/sh
 
-coqoune_path=${0:0:(-11)}
+coqoune_path=${0%/*}
 
 session=""
 case $1 in
