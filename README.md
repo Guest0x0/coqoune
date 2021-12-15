@@ -9,28 +9,25 @@ featuring a CoqIDE-like experience with interactive goal & feedback display.
 ## 1. Installation
 
 ### Dependency
-Coqoune is implemented using shell scripts,
-so it should work on all *nix systems.
-Note that coqoune uses several features not found in POSIX, like arrays.
-So you must have one of zsh, bash or ksh installed to use coqoune.
-But you don't have to use one of these as your user's shell.
-Just have them in your `$PATH`, and coqoune will choose a suitable one.
-However there are several runtime dependencies:
+Coqoune is implemented using OCaml and the `Unix` library bundled with it.
+For most *nix systems with a OCaml compiler available it should work without problem.
+If you unfortunately encounter any trouble on installation,
+check out the following list of dependencies are available:
 
-1. the coqidetop command
- 
-2. the xmllint command from libxml2
- 
-3. standard POSIX utilities 
-
-These dependencies are generally installed on most systems with Coq installed.
-However on some systems like nixos, where implicitly installed packages won't be in you `$PATH`,
-you should install these dependecies (mostly `libxml2`) manually.
+- A OCaml compiler. Only version 4.12 is tested.
+But anything starting from 4.7 should work fine.
+- The standard `Unix` library of OCaml.
+Should be bundled with most OCaml installations.
+- Standard POSIX utilities
 
 ### Manual Installation
 do
 ```
 git clone https://github.com/guest0x0/coqoune
+```
+In `/path/to/coqoune`, run
+```
+make
 ```
 then in your kakrc
 ```
@@ -40,23 +37,21 @@ when you need coqoune (e.g. inside a filetype hook)
 
 ### Installation via plug.kak
 ```
-plug "guest0x0/coqoune" subset %{
-    coqoune.kak
+plug "guest0x0/coqoune" do %{
+    make
 }
 ```
 You can config coqoune within plug.kak as well, see [the plug.kak repo](https://gitlab.com/andreyorst/plug.kak)
 
 
-## 2. Usage
+## Usage
 Coqoune facilities can be pulled in by calling `coq-start`.
 The buffer where `coq-start` is called should be the coq file you want to edit with coqoune.
 Once `coq-start` is called, two buffers,
-`*goal*` and `*result*` will be created,
+`goal@your_buffer_name` and `result@your_buffer_name` will be created,
 which displays proof goal and feedback message from Coq in respect.
 You can open new kakoune clients to display them alongside the main buffer,
-using i3, tmux or your tool of choice.
-
-Note that only one coqoune instance can exist per kakoune session.
+using a window manager, tmux or other tools.
 
 Once coqoune is started,
 you can perform various commands provided by coqoune.
@@ -69,10 +64,10 @@ So coqoune, like CoqIDE, maintains a position in the Coq file, called `tip`.
 Texts from start of buffer to the tip are already sent to Coq,
 while texts behind the tip are not.
 The region from start of buffer to the tip is called `processed`.
-And the content of `*goal*` and `*result*` buffers are based on the `processe` region,
+And the content of `goal@your_buffer_name` and `result@your_buffer_name` buffers are based on the `processed` region,
 rather than the whole file.
 
-By default, the `processed` region is underlined,
+By default, the `processed` region is rendered with a strikethrough effect,
 so that you can see it clearly.
 
 Coqoune provides a set of commands for manupulating the `processed` region:
@@ -88,38 +83,25 @@ Send/Undo commands, as well as growing/shrinking `processed`, if necessary.
 Besides these commands, when you edit the main buffer,
 coqoune shrink `processed` automatically so that no edit
 will be inside `processed`,
-i.e. you always need to re-send editted part again manually,
-if they are already sent.
+i.e. you always need to re-send editted part and anything after it again manually.
 
 There are several other useful commands:
 
-1.  `coq-query`: receive a string as the first parameter,
+-  `coq-query`: receive a string as the first parameter,
 which contains a query to be sent to Coq, at current tip.
 The query is just one or more ordinary Coq commands,
 but these commands won't change the state (i.e. tip and `processed`)
 
-2.  `coq-hints`: ask Coq for possible hints at current tip.
 
-3.  `coq-dump-log`: receive a file name as the first parameter,
-and dump coqoune log to the file (for debugging & trouble-shooting).
-
-
-## 3. Configuration
-The face `coqoune_processed` is used to highlight `processed` region.
-By default it simply underline the region,
-you can set it to alter the visual effect.
-
-The option `coqoune_shell` is used to determine which shell is used to execute coqoune's scripts.
-Available options are:
-
-1. zsh
-
-2. bash
-
-3. ksh
-
-These shells are tried from up to down, and the first available is used by default.
-You can set the option manually to specify the shell to use.
+## Configuration
+The face `coqoune_added` is used to highlight the commands that
+you already ask coqoune to send, but Coq not yet process.
+By default it renders with an extra underline effect.
+The face `coqoune_processed` is used to highlight the commands
+that Coq have already processed.
+By default it renders with an extra strikethrough effect.
+Note that except for very large files,
+the existence `coqoune_added` should be hardly noticable.
 
 For key-bindings, coqoune does not bundle any.
 You also need to call `coq-start` somewhere manually.
@@ -147,11 +129,5 @@ hook global WinSetOption filetype=coq %{
 }
 ```
 
-## 4. Known Issues
-Using `zsh` for `%opt{coqoune_shell}` seems to sometimes mess up the terminal after kakoune quits.
-Using `bash` is fine and `ksh` is not tested.
-A way to solve it is to type `reset` after quiting kakoune.
-Technical details are in (#2).
-
-## 5. License
-This software is distributed under the zlib license.
+## License
+This software is distributed under the 0-BSD license.
