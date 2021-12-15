@@ -1,4 +1,7 @@
 
+**WARNING: The shell script version of Coqoune is deprecated.
+Please use the new OCaml version instead**
+
 # Coqoune - CoqIDE meets Kakoune
 
 ![](./screenshot.png)
