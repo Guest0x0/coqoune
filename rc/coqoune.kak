@@ -229,4 +229,12 @@ define-command coq-start -params 0 %{
                   printf "</string></Query>" )  >$kak_opt_coqoune_working_dir/input
             }
         }
+
+    define-command coq-dump-log \
+        -docstring "dump internal log to a file for debugging" \
+        -params 1 %{
+            nop %sh{
+                cp $kak_opt_coqoune_working_dir/log $1
+            }
+        }
 }

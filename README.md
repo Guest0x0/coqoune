@@ -92,6 +92,9 @@ which contains a query to be sent to Coq, at current tip.
 The query is just one or more ordinary Coq commands,
 but these commands won't change the state (i.e. tip and `processed`)
 
+- `coq-dump-log`: dump internal log to a file.
+In case the plugin goes wrong please post the dumped log.
+
 
 ## Configuration
 The face `coqoune_added` is used to highlight the commands that
