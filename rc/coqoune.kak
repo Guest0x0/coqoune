@@ -4,136 +4,148 @@ declare-option -hidden str coqoune_path %sh{
     echo ${kak_source%/*/*}
 }
 
-declare-option -docstring "
-    The name of the shell used to execute coqoune scripts.
-    Possible options are:
-        1. bash
-        2. zsh
-        3. ksh
-    The default will be the first available, from up to down.
-" str coqoune_shell %sh{
-    if bash --help >/dev/null 2>&1; then
-        echo bash
-    elif zsh --help >/dev/null 2>&1; then
-        echo zsh
-    elif ksh --help >/dev/null 2>&1; then
-        echo ksh
-    fi
-}
+declare-option str coqoune_goal_buffer_name "goal@%%s"
+declare-option str coqoune_result_buffer_name "result@%%s"
 
 # source syntax file
 source "%opt{coqoune_path}/rc/syntax.kak"
 
 define-command coq-start -params 0 %{
-
-# Check for capabilities
-    evaluate-commands %sh{
-        if [ -z "$kak_opt_coqoune_path" -o -z "$kak_opt_coqoune_shell" ]; then
-            echo fail
-        elif xmllint --version 2>/dev/null && coqidetop --version >/dev/null 2>&1; then
-            exit 0
-        else
-            echo fail
-        fi
-    }
-
     declare-option -hidden str coqoune_buffer %val{bufname}
+    declare-option -hidden str coqoune_working_dir %sh{ mktemp -d }
 
 # init the coqoune scripts
     nop %sh{
-         $kak_opt_coqoune_shell $kak_opt_coqoune_path/coqoune.sh -s $kak_session init $kak_opt_coqoune_shell 1>/dev/null 2>&1 &
+        mkfifo $kak_opt_coqoune_working_dir/input
+        tail -n +1 -f $kak_opt_coqoune_working_dir/input 2>/dev/null \
+        | $kak_opt_coqoune_path/_build/coqoune $kak_opt_coqoune_working_dir \
+              $kak_session $kak_opt_coqoune_buffer 1>/dev/null 2>/$kak_opt_coqoune_working_dir/log &
     }
 
 # hooks for cleanup
     hook -group coqoune -once buffer BufClose .* %{
         nop %sh{
-            ( $kak_opt_coqoune_path/coqoune.sh -s $kak_session user-input
-              $kak_opt_coqoune_path/coqoune.sh -s $kak_session quit
-            ) 1>/dev/null 2>&1
+            echo "<Quit/>" >$kak_opt_coqoune_working_dir/input
+            rm -R $kak_opt_coqoune_working_dir
         }
     }
 
-# create goal & result buffers
-    evaluate-commands -draft %{
-        edit -scratch '*goal*'
-        edit -scratch '*result*'
-        declare-option -hidden str coqoune_goal_buffer '*goal*'
-        declare-option -hidden str coqoune_result_buffer '*result*'
+    # create goal & result buffers
+    declare-option -hidden str coqoune_goal_buffer %sh{
+        printf "$kak_opt_coqoune_goal_buffer_name" "$kak_opt_coqoune_buffer"
     }
+    declare-option -hidden str coqoune_result_buffer %sh{
+        printf "$kak_opt_coqoune_result_buffer_name" "$kak_opt_coqoune_buffer"
+    }
+
+    evaluate-commands -draft %{
+        edit -scratch %opt{coqoune_goal_buffer}
+        edit -scratch %opt{coqoune_result_buffer}
+    }
+
     evaluate-commands -draft -buffer %opt{coqoune_goal_buffer} %{
         set-option buffer filetype coq-goal
+    }
+
+    evaluate-commands -draft -buffer %opt{coqoune_result_buffer} %{
+        set-option buffer filetype coq-result
     }
 
 # set up highlighters.
     # highlighter for marking commands already processed
     # `coqoune_processed' should contain only one region
-    declare-option -hidden range-specs coqoune_processed_highlighters %val{timestamp}
+    declare-option -hidden range-specs coqoune_processed_range %val{timestamp}
     evaluate-commands -buffer %opt{coqoune_buffer} %{
-        add-highlighter buffer/coqoune_processed ranges coqoune_processed_highlighters
+        add-highlighter buffer/coqoune_processed ranges coqoune_processed_range
     }
 
     # face for marking processed commands
-    set-face buffer coqoune_processed default,default+u
+    set-face buffer coqoune_added     default,default+u
+    set-face buffer coqoune_processed default,default+s
+
 
     # semantic highlighters based on coq's output
-    declare-option -hidden range-specs coqoune_goal_highlighters     %val{timestamp}
+    declare-option -hidden range-specs coqoune_goal_highlighters %val{timestamp}
     evaluate-commands -buffer %opt{coqoune_goal_buffer} %{
         add-highlighter buffer/coqoune_goal ranges coqoune_goal_highlighters
     }
 
-    declare-option -hidden range-specs coqoune_result_highlighters   %val{timestamp}
+    declare-option -hidden range-specs coqoune_result_highlighters %val{timestamp}
     evaluate-commands -buffer %opt{coqoune_result_buffer} %{
         add-highlighter buffer/coqoune_result ranges coqoune_result_highlighters
     }
 
 
-# user interaction
-
-    # manually request for goal. Should be called automatically.
-    define-command -hidden coq-goal -params 0 %{
-        nop %sh{ $kak_opt_coqoune_shell $kak_opt_coqoune_path/coqoune.sh -s $kak_session goal }
+# callback for Coqoune
+    define-command -hidden coqoune-refresh-goal -params 0 %{
+        execute-keys -buffer %opt{coqoune_goal_buffer} %sh{
+            printf "%%|cat %s/goal<ret>" "$kak_opt_coqoune_working_dir"
+        }
+        evaluate-commands -buffer %opt{coqoune_goal_buffer} %sh{
+            printf "set-option buffer coqoune_goal_highlighters %s " "%val{timestamp}"
+            cat $kak_opt_coqoune_working_dir/goal_highlighter
+        }
     }
 
+    define-command -hidden coqoune-refresh-result -params 0 %{
+        execute-keys -buffer %opt{coqoune_result_buffer} %sh{
+            printf "%%|cat %s/result<ret>" "$kak_opt_coqoune_working_dir"
+        }
+        evaluate-commands -buffer %opt{coqoune_result_buffer} %sh{
+            printf "set-option buffer coqoune_result_highlighters %s " "%val{timestamp}"
+            cat $kak_opt_coqoune_working_dir/result_highlighter
+        }
+    }
+
+# user interaction
     # receive a movement command ('next', 'back' or 'to') and send it to coqoune
     define-command -hidden coq-move-command -params 1 %{
-        nop %sh{ $kak_opt_coqoune_shell $kak_opt_coqoune_path/coqoune.sh -s $kak_session user-input }
+        nop %sh{ echo "<User_React/>" >$kak_opt_coqoune_working_dir/input }
         execute-keys -draft %sh{
-            echo $kak_opt_coqoune_processed_highlighters | (
+            echo $kak_opt_coqoune_processed_range | (
                 read -d ' ' # timestamp
+                read -d ' ' # processed part
                 read -d '.' # start line (should be beginning of buffer)
                 read -d ',' # end line (should be beginning of buffer)
                 read -d '.' line0 || line0=1
                 read -d '|' col0  || col0=1
+                keys="${line0}ggh"
+                if [ "$line0" -ne 1 -o "$col0" -ne 1 ]; then
+                    keys="${keys}${col0}l"
+                fi
+                keys="${keys}Ge<a-;>"
                 case $1 in
                     ( 'next' ) 
-                        keys="$line0"gghGe
-                        keys="$keys<a-|>$kak_opt_coqoune_shell $kak_opt_coqoune_path/parse_command.sh"
-                        keys="$keys $line0 $col0 -next|"
-                        keys="$keys$kak_opt_coqoune_shell $kak_opt_coqoune_path/coqoune.sh -s $kak_session add"
-                        echo "$keys<ret>" | sed -n 's/ /<space>/g; p'
+                        keys="$keys<a-|>$kak_opt_coqoune_path/_build/parse_expr"
+                        keys="$keys \$kak_cursor_line \$kak_cursor_column >"
+                        keys="$keys$kak_opt_coqoune_working_dir/input<ret>"
                         ;;
                     ( 'to' )
                         if [ "$line0" -gt "$kak_cursor_line" ] || \
                            [ "$line0" -eq "$kak_cursor_line" -a "$col0" -ge "$kak_cursor_column" ];
                         then
-                            $kak_opt_coqoune_shell $kak_opt_coqoune_path/coqoune.sh -s $kak_session back-to:$kak_cursor_line.$kak_cursor_column
-                            exit 0
+                            keys="$keys;:nop %sh{"
+                            keys="${keys}echo \"<lt>Back_To<gt><lt>pair<gt>"
+                            keys="$keys<lt>int<gt>$kak_cursor_line<lt>/int<gt>"
+                            keys="$keys<lt>int<gt>$kak_cursor_column<lt>/int<gt>"
+                            keys="$keys<lt>/pair<gt><lt>/Back_To<gt>\""
+                            keys="$keys >$kak_opt_coqoune_working_dir/input }<ret>"
                         else
-                            keys="$line0"gghGe
-                            keys="$keys<a-|>$kak_opt_coqoune_shell $kak_opt_coqoune_path/parse_command.sh"
-                            keys="$keys $line0 $col0 $kak_cursor_line $kak_cursor_column|"
-                            keys="$keys$kak_opt_coqoune_shell $kak_opt_coqoune_path/coqoune.sh -s $kak_session add"
-                            echo "$keys<ret>" | sed -n 's/ /<space>/g; p'
+                            keys="$keys<a-|>$kak_opt_coqoune_path/_build/parse_expr"
+                            keys="$keys \$kak_cursor_line \$kak_cursor_column $kak_cursor_line $kak_cursor_column"
+                            keys="$keys >$kak_opt_coqoune_working_dir/input<ret>"
                         fi
                         ;;
                     ( 'back' )
-                        $kak_opt_coqoune_shell $kak_opt_coqoune_path/coqoune.sh -s $kak_session back
-                        exit 0
+                        keys="$keys;:nop %sh{"
+                        keys="${keys}echo \"<lt>Back/<gt>\""
+                        keys="$keys >$kak_opt_coqoune_working_dir/input }<ret>"
                         ;;
                 esac
+                echo "$keys<ret>" | sed -n 's/ /<space>/g; p'
             )
         }
-        coq-goal
+        nop %sh{ echo "<Goal/>" >$kak_opt_coqoune_working_dir/input }
     }
 
     define-command coq-next \
@@ -154,9 +166,8 @@ define-command coq-start -params 0 %{
 
     # automatically backward execution on text change 
     define-command -hidden coq-on-text-change -params 0 %{
-        nop %sh{ $kak_opt_coqoune_path/coqoune.sh -s $kak_session user-input }
-        echo -debug -- %sh{
-            function compare_cursor() {
+        nop %sh{
+            compare_cursor() {
                 line1=$1
                 col1=$2
                 line2=$3
@@ -173,8 +184,9 @@ define-command coq-start -params 0 %{
                     echo 0
                 fi
             }
-            echo $kak_opt_coqoune_processed_highlighters | (
-                    read -d ' '
+            echo $kak_opt_coqoune_processed_range | (
+                    read -d ' ' # timestamp
+                    read -d ' ' # processed region
                     read -d '.'
                     read -d ','
                     read -d '.' line0 || line0=1
@@ -186,14 +198,17 @@ define-command coq-start -params 0 %{
                         while read -d '.'; read -d ','; do
                             read -d '.' line
                             read -d ' ' col
-                            if [ "$(compare_cursor $earliest_line $earliest_col $line $col)" = 1 ]; then
+                            if [ "$(compare_cursor $earliest_line $earliest_col $line $col)" -gt 0 ]; then
                                 earliest_line=$line
                                 earliest_col=$col
                             fi
                         done
                         # if (any part of) the edit happens inside processed region, backward execution
-                        if [ "$(compare_cursor $earliest_line $earliest_col $line0 $col0)" = '-1' ]; then
-                            $kak_opt_coqoune_path/coqoune.sh -s $kak_session back-to:$earliest_line.$earliest_col
+                        if [ "$(compare_cursor $earliest_line $earliest_col $line0 $col0)" -lt 0 ]; then
+                            echo "<User_React/>" >$kak_opt_coqoune_working_dir/input
+                            printf "<Back_To><pair><int>%s</int><int>%s</int></pair></Back_To>" \
+                                "$earliest_line" "$earliest_col" >$kak_opt_coqoune_working_dir/input
+                            printf "<Goal/>" >$kak_opt_coqoune_working_dir/input
                         fi
                     )
             )
@@ -208,27 +223,10 @@ define-command coq-start -params 0 %{
         -docstring "send the first argument as a query to coqoune" \
         -params 1 %{
             nop %sh{
-                $kak_opt_coqoune_path/coqoune.sh -s $kak_session user-input
-                $kak_opt_coqoune_path/coqoune.sh -s $kak_session query "$1"
+                echo "<User_React/>" >$kak_opt_coqoune_working_dir/input
+                ( printf "<Query><string>"
+                  printf "%s" "$1" | sed -n "s/&/&amp;/g; s/\"/&quot;/g; s/'/&apos;/g; s/</&lt;/g; s/>/&gt;/g; p"
+                  printf "</string></Query>" )  >$kak_opt_coqoune_working_dir/input
             }
         }
-
-    define-command coq-hints \
-        -docstring "ask coq for hints" \
-        -params 0 %{
-            nop %sh{
-                $kak_opt_coqoune_path/coqoune.sh -s $kak_session user-input
-                $kak_opt_coqoune_path/coqoune.sh -s $kak_session hints
-            }
-        }
-
-
-    define-command coq-dump-log \
-        -docstring "dump coqoune log to the specified file" \
-        -params 1 %{
-            nop %sh{
-                cp /tmp/coqoune-$kak_session/log $1
-            }
-        }
-
 }

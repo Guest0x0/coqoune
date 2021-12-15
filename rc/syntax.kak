@@ -20,12 +20,6 @@ hook global WinSetOption filetype=coq %{
     add-highlighter window/coq ref coq
 }
 
-hook global WinSetOption filetype=coq-goal %{
-    require-module coq
-
-    add-highlighter buffer/coq ref coq
-}
-
 provide-module -override coq %{
 
 # Syntax
