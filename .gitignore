@@ -1,1 +1,4 @@
-_build/*
+_build/*.cmi
+_build/*.cmo
+_build/coqoune
+_build/parse_expr
