@@ -92,7 +92,7 @@ let handle_error state (err_loc, safe_locs, err_msg) =
     Interface.kak_refresh_result state.kak_session state.kak_main_buf;
     if compare_loc safe_loc state.processed < 0 then
         state.processed <- safe_loc;
-    Interface.kak_set_processed_range
+    Interface.kak_set_processed_range ~force:true
         state.kak_session state.kak_main_buf safe_loc state.processed
 
 
@@ -187,11 +187,11 @@ let process_cmd state cmd =
             end;
             Interface.kak_set_processed_range
                 state.kak_session state.kak_main_buf (row, col) state.processed;
-            state.result_route_id <- (-1);
             if state.result_route_id >= 0 then begin
                 ignore @@ Interface.render_result state.working_dir [];
                 Interface.kak_refresh_result state.kak_session state.kak_main_buf
-            end
+            end;
+            state.result_route_id <- (-1)
         | Goal ->
             let goals = extract_data (T_Option T_Goals) data in
             ignore @@ Interface.render_goals state.working_dir goals;
