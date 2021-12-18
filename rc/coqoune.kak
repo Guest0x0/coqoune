@@ -55,8 +55,10 @@ define-command coq-start -params 0 %{
     # highlighter for marking commands already processed
     # `coqoune_processed' should contain only one region
     declare-option -hidden range-specs coqoune_processed_range %val{timestamp}
+    declare-option -hidden range-specs coqoune_error_range     %val{timestamp}
     evaluate-commands -buffer %opt{coqoune_buffer} %{
         add-highlighter buffer/coqoune_processed ranges coqoune_processed_range
+        add-highlighter buffer/coqoune_error     ranges coqoune_error_range
     }
 
     # face for marking processed commands
@@ -95,6 +97,30 @@ define-command coq-start -params 0 %{
             printf "set-option buffer coqoune_result_highlighters %s " "%val{timestamp}"
             cat $kak_opt_coqoune_working_dir/result_highlighter
         }
+    }
+
+    define-command -hidden coqoune-set-error-range -params 4 %{
+        evaluate-commands -draft %{
+            execute-keys %sh{
+                row_s=$1
+                col_s=$2
+                offset_start=$3
+                printf "%s" "${row_s}ggh"
+                tot_offset=$((col_s + offset_start - 1))
+                if [ "$tot_offset" -gt 0 ]; then
+                    printf "%s" "${tot_offset}l"
+                fi
+            }
+            set-option buffer coqoune_error_range %val{timestamp} %sh{
+                err_len=$(($4 - $3))
+                printf "%s.%s+%d|Error" \
+                    "$kak_cursor_line" "$kak_cursor_column" "$err_len"
+            }
+        }
+    }
+
+    define-command -hidden coqoune-unset-error-range -params 0 %{
+        set-option buffer coqoune_error_range %val{timestamp}
     }
 
 # user interaction
@@ -164,6 +190,31 @@ define-command coq-start -params 0 %{
             coq-move-command to
         }
 
+
+    define-command coq-query \
+        -docstring "send the first argument as a query to coqoune" \
+        -params 1 %{
+            nop %sh{
+                echo "<User_React/>" >$kak_opt_coqoune_working_dir/input
+                ( printf "<Query><string>"
+                  printf "%s" "$1" | sed -n "s/&/&amp;/g; s/\"/&quot;/g; s/'/&apos;/g; s/</&lt;/g; s/>/&gt;/g; p"
+                  printf "</string></Query>" )  >$kak_opt_coqoune_working_dir/input
+            }
+        }
+
+    define-command coq-dump-log \
+        -docstring "dump internal log to a file for debugging" \
+        -params 1 %{
+            nop %sh{
+                cp $kak_opt_coqoune_working_dir/log $1
+            }
+        }
+
+
+    hook buffer BufSetOption coqoune_processed_range=.* %{
+        echo -debug upd range
+    }
+
     # automatically backward execution on text change 
     define-command -hidden coq-on-text-change -params 0 %{
         nop %sh{
@@ -218,23 +269,4 @@ define-command coq-start -params 0 %{
     hook -group coqoune buffer InsertChar   .* coq-on-text-change
     hook -group coqoune buffer InsertDelete .* coq-on-text-change
 
-
-    define-command coq-query \
-        -docstring "send the first argument as a query to coqoune" \
-        -params 1 %{
-            nop %sh{
-                echo "<User_React/>" >$kak_opt_coqoune_working_dir/input
-                ( printf "<Query><string>"
-                  printf "%s" "$1" | sed -n "s/&/&amp;/g; s/\"/&quot;/g; s/'/&apos;/g; s/</&lt;/g; s/>/&gt;/g; p"
-                  printf "</string></Query>" )  >$kak_opt_coqoune_working_dir/input
-            }
-        }
-
-    define-command coq-dump-log \
-        -docstring "dump internal log to a file for debugging" \
-        -params 1 %{
-            nop %sh{
-                cp $kak_opt_coqoune_working_dir/log $1
-            }
-        }
 }

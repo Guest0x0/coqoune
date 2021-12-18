@@ -14,6 +14,7 @@ type state =
 
     ; mutable added  : ((int * int) * Data.state_id) list
     ; mutable processed : (int * int)
+    ; mutable err_loc   : Data.location_offset option
 
     ; mutable route_id : int
 
@@ -84,12 +85,25 @@ let handle_error state (err_loc, safe_locs, err_msg) =
     state.added <- safe_locs;
     let safe_loc, safe_sid = List.hd safe_locs in
     Queue.add (Usercmd.Back_To_State safe_sid) state.queued;
-    let err_msg = Data.{ content = "[error] "
-                       ; highlighter = "error" } :: err_msg
+    let err_msg =
+        Data.{ content = "[error]"; highlighter = "error" }
+        :: Data.{ content = " "; highlighter = "" }
+        :: err_msg
     in
     state.result_next_row <- Interface.render_result
             state.working_dir err_msg;
     Interface.kak_refresh_result state.kak_session state.kak_main_buf;
+
+    begin match err_loc with
+    | Some _ ->
+        state.err_loc <- err_loc;
+        Interface.kak_set_error_range
+            state.kak_session state.kak_main_buf
+            safe_loc err_loc
+    | None ->
+        ()
+    end;
+
     if compare_loc safe_loc state.processed < 0 then
         state.processed <- safe_loc;
     Interface.kak_set_processed_range ~force:true
@@ -177,21 +191,35 @@ let process_cmd state cmd =
                         data
             in
             log @@ String.concat ""
-                [ "[Coqoune] added vernac expr: ("
+                [ "[Coqoune] added expr: ("
                 ; string_of_int row; ", "; string_of_int col; ")" ];
+
             begin match new_state_id with
             | Inl () ->
                 state.added <- (loc_e, state_id) :: state.added
             | Inr new_state_id ->
                 state.added <- (loc_e, new_state_id) :: state.added
             end;
+
             Interface.kak_set_processed_range
                 state.kak_session state.kak_main_buf (row, col) state.processed;
+
             if state.result_route_id >= 0 then begin
                 ignore @@ Interface.render_result state.working_dir [];
                 Interface.kak_refresh_result state.kak_session state.kak_main_buf
             end;
-            state.result_route_id <- (-1)
+            state.result_route_id <- (-1);
+
+            begin match state.err_loc with
+            | Some _ ->
+                state.err_loc <- None;
+                Interface.kak_set_error_range
+                    state.kak_session state.kak_main_buf
+                    loc_e None
+            | None ->
+                ()
+            end;
+
         | Goal ->
             let goals = extract_data (T_Option T_Goals) data in
             ignore @@ Interface.render_goals state.working_dir goals;
@@ -291,6 +319,7 @@ let _ =
 
         ; added       = []
         ; processed   = (1, 1)
+        ; err_loc     = None
 
         ; route_id    = 0
 

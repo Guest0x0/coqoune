@@ -20,7 +20,7 @@ let highlighter_map = SMap.of_seq @@ List.to_seq
         ; "tactic.primitive" , "function"
         (* for internal use *)
         ; "value"            , "value"
-        ; "error"            , "error"
+        ; "error"            , "Error"
         ; "warning"          , "warning" ]
 
 
@@ -202,6 +202,18 @@ let kak_refresh_result session buf =
     run_kak_cmd session @@ String.concat " "
         [ "evaluate-commands"; "-buffer"; buf
         ; "%{ coqoune-refresh-result }" ]
+
+let kak_set_error_range session buf (row_s, col_s) err_loc =
+    run_kak_cmd session @@ String.concat " "
+        ([ "evaluate-commands"; "-buffer"; buf; "%{" ]
+            @ (match err_loc with
+                | Some Data.{ start; stop } ->
+                    [ "coqoune-set-error-range"
+                    ; string_of_int row_s; string_of_int col_s
+                    ; string_of_int start; string_of_int stop
+                    ; "}" ]
+                | None ->
+                    [ "coqoune-unset-error-range"; "}" ]))
 
 
 let kak_set_processed_range =
