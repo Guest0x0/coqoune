@@ -4,13 +4,19 @@ declare-option -hidden str coqoune_path %sh{
     echo ${kak_source%/*/*}
 }
 
-declare-option str coqoune_goal_buffer_name "goal@%%s"
-declare-option str coqoune_result_buffer_name "result@%%s"
+declare-option str coqoune_goal_buffer_name "goal@[%%s]"
+declare-option str coqoune_result_buffer_name "result@[%%s]"
 
 # source syntax file
 source "%opt{coqoune_path}/rc/syntax.kak"
 
 define-command coq-start -params 0 %{
+    evaluate-commands %sh{
+        if [ "$kak_opt_coqoune_buffer" = "$kak_bufname" ]; then
+            echo 'fail "coqoune already started in this buffer"'
+        fi
+    }
+
     declare-option -hidden str coqoune_buffer %val{bufname}
     declare-option -hidden str coqoune_working_dir %sh{ mktemp -d }
 
@@ -20,14 +26,6 @@ define-command coq-start -params 0 %{
         tail -n +1 -f $kak_opt_coqoune_working_dir/input 2>/dev/null \
         | $kak_opt_coqoune_path/_build/coqoune $kak_opt_coqoune_working_dir \
               $kak_session $kak_opt_coqoune_buffer 1>/dev/null 2>/$kak_opt_coqoune_working_dir/log &
-    }
-
-# hooks for cleanup
-    hook -group coqoune -once buffer BufClose .* %{
-        nop %sh{
-            echo "<Quit/>" >$kak_opt_coqoune_working_dir/input
-            rm -R $kak_opt_coqoune_working_dir
-        }
     }
 
     # create goal & result buffers
@@ -77,6 +75,16 @@ define-command coq-start -params 0 %{
         add-highlighter buffer/coqoune_result ranges coqoune_result_highlighters
     }
 
+
+# hooks for cleanup
+    hook -group coqoune buffer BufClose .* %{
+        try %{ delete-buffer %opt{coqoune_goal_buffer} }
+        try %{ delete-buffer %opt{coqoune_result_buffer} }
+        nop %sh{
+            echo "<Quit/>" >$kak_opt_coqoune_working_dir/input
+            rm -R $kak_opt_coqoune_working_dir
+        }
+    }
 
 # callback for Coqoune
     define-command -hidden coqoune-refresh-goal -params 0 %{
@@ -210,10 +218,6 @@ define-command coq-start -params 0 %{
             }
         }
 
-
-    hook buffer BufSetOption coqoune_processed_range=.* %{
-        echo -debug upd range
-    }
 
     # automatically backward execution on text change 
     define-command -hidden coq-on-text-change -params 0 %{

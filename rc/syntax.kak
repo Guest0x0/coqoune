@@ -3,7 +3,11 @@
 # --------
 
 hook global BufCreate .*\.v %{
-    set-option buffer filetype coq
+    evaluate-commands -buffer %val{hook_param} %sh{
+        if [ "$kak_opt_filetype" != "coq" ]; then
+            echo "set-option buffer filetype coq"
+        fi
+    }
 }
 
 # Initialization
