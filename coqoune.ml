@@ -78,13 +78,7 @@ let log str =
 
 
 
-let handle_error state (err_loc, safe_locs, err_msg) =
-    state.status <- `Error;
-    Queue.clear state.queued;
-    (* Queue.clear state.waiting; *)
-    state.added <- safe_locs;
-    let safe_loc, safe_sid = List.hd safe_locs in
-    Queue.add (Usercmd.Back_To_State safe_sid) state.queued;
+let show_error_msg state err_msg =
     let err_msg =
         Data.{ content = "[error]"; highlighter = "error" }
         :: Data.{ content = " "; highlighter = "" }
@@ -92,7 +86,17 @@ let handle_error state (err_loc, safe_locs, err_msg) =
     in
     state.result_next_row <- Interface.render_result
             state.working_dir err_msg;
-    Interface.kak_refresh_result state.kak_session state.kak_main_buf;
+    Interface.kak_refresh_result state.kak_session state.kak_main_buf
+
+let handle_error state (err_loc, safe_locs, err_msg) =
+    state.status <- `Error;
+    Queue.clear state.queued;
+    (* Queue.clear state.waiting; *)
+    state.added <- safe_locs;
+    let safe_loc, safe_sid = List.hd safe_locs in
+    Queue.add (Usercmd.Back_To_State safe_sid) state.queued;
+
+    show_error_msg state err_msg;
 
     begin match err_loc with
     | Some _ ->
@@ -170,6 +174,16 @@ let process_cmd state cmd =
                 state.result_route_id <- (-1);
                 ignore @@ Interface.render_result state.working_dir [];
                 Interface.kak_refresh_result state.kak_session state.kak_main_buf;
+            end;
+
+            begin match state.err_loc with
+            | Some _ when state.status = `Ok ->
+                state.err_loc <- None;
+                Interface.kak_set_error_range
+                    state.kak_session state.kak_main_buf
+                    (row, col) None
+            | _ ->
+                ()
             end
         | _ when state.status = `Error ->
             ()
@@ -241,6 +255,9 @@ let process_cmd state cmd =
                        ; highlighter = "" } ];
             Interface.kak_refresh_result state.kak_session state.kak_main_buf;
             raise Quit
+        | Usercmd.QueryF _ ->
+            log("[Coqoune] query failed");
+            show_error_msg state err_msg
         | _ ->
             log("[Coqoune] entering error state due to command failure");
             handle_error state (err_loc, state.added, err_msg)

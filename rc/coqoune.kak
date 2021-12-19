@@ -114,7 +114,7 @@ define-command coq-start -params 0 %{
                 col_s=$2
                 offset_start=$3
                 printf "%s" "${row_s}ggh"
-                tot_offset=$((col_s + offset_start - 1))
+                tot_offset=$((col_s + offset_start))
                 if [ "$tot_offset" -gt 0 ]; then
                     printf "%s" "${tot_offset}l"
                 fi
