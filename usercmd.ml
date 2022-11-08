@@ -34,7 +34,7 @@ let to_xml coq_version cmd =
     | Quit ->
         call "Quit" D_Unit
     | AddF({ state_id }, (row, col), _, src) ->
-        begin match Data.compare_version coq_version (8, 16) with
+        begin match Data.compare_version coq_version (8, 15) with
         | n when n < 0 ->
             call "Add" @@ D_Pair(
                 D_Pair(D_String src, D_Int 2),

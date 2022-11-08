@@ -189,7 +189,7 @@ let process_cmd state cmd =
             ()
         | Usercmd.AddF(_, _, ((row, col) as loc_e), src) ->
             let (state_id, new_state_id) =
-                match Data.compare_version state.coq_version (8, 16) with
+                match Data.compare_version state.coq_version (8, 15) with
                 | n when n < 0 ->
                     extract_data
                         (T_Pair(T_State_Id, T_Pair(
@@ -347,8 +347,8 @@ let _ =
     let (from_coq, coq_to_here) = Unix.pipe ~cloexec:true () in
     let (coq_from_here, to_coq) = Unix.pipe ~cloexec:true () in
     let coqidetop_pid = Unix.create_process
-            ~prog:"coqidetop"
-            ~args:[|"coqidetop"; "-main-channel"; "stdfds"|]
+            ~prog:"coqidetop.opt"
+            ~args:[|"coqidetop.opt"; "-main-channel"; "stdfds"|]
             ~stdin:coq_from_here ~stdout:coq_to_here ~stderr:Unix.stderr
     in
     log (string_of_int coqidetop_pid);
