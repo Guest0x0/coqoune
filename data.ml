@@ -233,7 +233,10 @@ let rec data_of_xml xml =
                    ; stop  = int_of_string stop }
     | "richpp", [], [Xml_Elem pp] ->
         D_Pretty(pretty_expr_of_xml pp)
-    | "goal", [], [Xml_Elem id; Xml_Elem hyp; Xml_Elem ccl] ->
+    | "goal", [], [Xml_Elem id; Xml_Elem hyp; Xml_Elem ccl]
+    (* From Coq 8.14, there's a [string option] field for user-defined goal name.
+       See [https://github.com/coq/coq/pull/14523] *)
+    | "goal", [], [Xml_Elem id; Xml_Elem hyp; Xml_Elem ccl; _] ->
         D_Goal {
             goal_id  = extract_data T_String          (data_of_xml id);
             goal_hyp = extract_data (T_List T_Pretty) (data_of_xml hyp);
@@ -267,8 +270,8 @@ let rec data_of_xml xml =
             | Xml_Elem elem -> data_of_xml elem
             | _             -> failwith "data_of_xml")
 
-    | _ ->
-        failwith "data_of_xml"
+    | tag, _, _ ->
+        failwith ("data_of_xml: " ^ tag)
 
 
 
